@@ -252,7 +252,7 @@ module Single_page_handler = struct
 
   let default_with_body_div ~div_id =
     sprintf {|
-  <body>
+ <body>
     <div id="%s">
     </div>
   </body>|} div_id
