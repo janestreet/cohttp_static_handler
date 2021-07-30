@@ -1,4 +1,4 @@
 (library (name test_cohttp_static_handler)
  (libraries async cohttp-async cohttp_static_handler core_kernel.core
-  expect_test_helpers_async expect_test_helpers_core)
+  expect_test_helpers_async expect_test_helpers_core re_jane)
  (preprocess (pps ppx_jane)))

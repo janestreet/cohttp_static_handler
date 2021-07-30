@@ -1,5 +1,6 @@
 open! Core
 open! Async
+module Re = Re_jane.Easy_mode
 
 module Debug_server : sig
   type t
@@ -550,4 +551,46 @@ let%expect_test "Multiple embedded assets of multiple types are ordered correctl
   <body>
   </body>
 </html> |}])
+;;
+
+let%expect_test "Directory handler logging requests and file not found" =
+  let create_log ~tmpdir =
+    let strip_directory s =
+      let pattern = String.Search_pattern.create tmpdir in
+      String.Search_pattern.replace_all pattern ~in_:s ~with_:"<TMPDIR>"
+    in
+    Log.create
+      ~level:`Debug
+      ~output:[ Log.Output.stderr () ]
+      ~on_error:`Raise
+      ~transform:(fun m ->
+        let message = Log.Message.message m |> strip_directory in
+        let time = Log.Message.time m in
+        Log.Message.create ~time (`String message))
+      ()
+  in
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let handler =
+      Cohttp_static_handler.directory_handler
+        ~log:(create_log ~tmpdir:dir)
+        ~directory:dir
+        ()
+    in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%bind () =
+        Debug_server.perform_request_and_print_body debug_server ~path:"/"
+      in
+      [%expect
+        {|
+1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
+1969-12-31 19:00:00.000000-05:00 ("File not found"(filename <TMPDIR>/index.html))
+<html><body><h1>404 Not Found</h1></body></html> |}];
+      let%bind () = Writer.save (dir ^/ "index.html") ~contents:{|<html>|} in
+      let%map () =
+        Debug_server.perform_request_and_print_body debug_server ~path:"/"
+      in
+      [%expect
+        {|
+    1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
+    <html> |}]))
 ;;

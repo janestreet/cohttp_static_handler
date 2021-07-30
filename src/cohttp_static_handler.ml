@@ -39,18 +39,26 @@ let log_request ?(log = Lazy.force Log.Global.log) inet path =
   Log.sexp
     log
     ~level:`Debug
-    [%message
-      "Serving http request" (inet : Socket.Address.Inet.t) (Time.now () : Time.t) path]
+    [%message "Serving http request" (inet : Socket.Address.Inet.t) path]
+;;
+
+let log_file_not_found ?(log = Lazy.force Log.Global.log) filename =
+  Log.sexp log ~level:`Debug [%message "File not found" (filename : String.t)]
 ;;
 
 (** Same as [Cohttp_async.Server.respond_with_file], but if a gzipped version of the
     file is available, the gzipped version will be served instead. *)
-let respond_with_file_or_gzipped ?flush ?headers ?error_body filename =
+let respond_with_file_or_gzipped ?log ?flush ?headers ?error_body filename =
   let gz_filename = filename ^ ".gz" in
   let%bind headers, filename =
-    match%map Sys.file_exists gz_filename with
-    | `Yes -> Some (Header.add_opt headers "content-encoding" "gzip"), gz_filename
-    | `No | `Unknown -> headers, filename
+    match%bind Sys.file_exists gz_filename with
+    | `Yes -> return (Some (Header.add_opt headers "content-encoding" "gzip"), gz_filename)
+    | `No | `Unknown ->
+      let%map file_exists = Sys.file_exists filename in
+      (match file_exists with
+       | `No | `Unknown -> log_file_not_found ?log filename
+       | `Yes -> ());
+      headers, filename
   in
   Cohttp_async.Server.respond_with_file ?flush ?headers ?error_body filename
 ;;
@@ -60,7 +68,7 @@ let directory_handler ?log ?directory () ~body:_ inet req =
   let path = request_path req in
   log_request ?log inet path;
   let filename = directory ^/ Canonicalize.path path in
-  respond_with_file_or_gzipped filename
+  respond_with_file_or_gzipped ?log filename
 ;;
 
 let respond_string ~content_type ?flush ?headers ?status s =
@@ -261,7 +269,7 @@ module Single_page_handler = struct
 
   let create ~body = body
 
-  let html t ?title ~assets : t =
+  let html ?title t ~assets : t =
     let concat_and_prepend_newline = function
       | [] -> ""
       | lst ->
@@ -297,7 +305,7 @@ module Single_page_handler = struct
   ;;
 
   let create_handler ?log ?title t ~assets ~on_unknown_url =
-    let html = html t ?title ~assets in
+    let html = html ?title t ~assets in
     let static_files = Asset.to_map_with_handlers assets in
     fun ~body:_ inet req ->
       let path = request_path req in
