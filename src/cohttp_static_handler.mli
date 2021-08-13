@@ -34,6 +34,16 @@ module Asset : sig
 
   val local : Kind.t -> What_to_serve.t -> t
   val external_ : url:Uri.t -> Kind.t -> t
+
+  (** Embed a dynamically created opensearch.xml .
+
+      [template] must be a rooted subpath of the current domain, for instance
+      "https://localhost:8443/?query={searchTerms}". Specifically, relative URIs - like
+      "/" - will not work.
+
+      https://developer.mozilla.org/en-US/docs/Web/OpenSearch
+  *)
+  val opensearch_xml : template:string -> short_name:string -> description:string -> t
 end
 
 module Single_page_handler : sig

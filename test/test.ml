@@ -122,8 +122,8 @@ let%expect_test "Static handler" =
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <script defer src="main0.js"></script>
-    <script defer src="main1.js"></script>
+      <script defer src="main0.js"></script>
+      <script defer src="main1.js"></script>
   </head>
   <body>
   </body>
@@ -161,7 +161,7 @@ let%expect_test "Static single file handler" =
     <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <script defer src="file"></script>
+          <script defer src="file"></script>
       </head>
       <body>
       </body>
@@ -244,12 +244,12 @@ let%expect_test "Static single file handler custom body html" =
     <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <script defer src="file.js"></script>
-        <link rel="stylesheet" type="text/css" href="file.css">
+          <script defer src="file.js"></script>
+          <link rel="stylesheet" type="text/css" href="file.css">
       </head>
       <body class=".error">
-        <div id="content"></div>
-      </body>
+          <div id="content"></div>
+        </body>
     </html> |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file.js"
@@ -284,7 +284,7 @@ let%expect_test "Static single file handler serve any page" =
     <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <script defer src="file"></script>
+          <script defer src="file"></script>
       </head>
       <body>
       </body>
@@ -298,7 +298,7 @@ let%expect_test "Static single file handler serve any page" =
     <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <script defer src="file"></script>
+          <script defer src="file"></script>
       </head>
       <body>
       </body>
@@ -380,7 +380,7 @@ let%expect_test "Static handler with asset" =
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <link rel="rel" type="type" href="filename">
+      <link rel="rel" type="type" href="filename">
   </head>
   <body>
   </body>
@@ -413,7 +413,7 @@ let%expect_test "Embedded asset with filename" =
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" type="text/css" href="a.css">
+      <link rel="stylesheet" type="text/css" href="a.css">
   </head>
   <body>
   </body>
@@ -480,9 +480,9 @@ let%expect_test "Multiple embedded assets with generated names" =
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" type="text/css" href="auto-generated-2">
-    <link rel="stylesheet" type="text/css" href="auto-generated-1">
-    <script defer src="auto-generated-0"></script>
+      <link rel="stylesheet" type="text/css" href="auto-generated-2">
+      <link rel="stylesheet" type="text/css" href="auto-generated-1">
+      <script defer src="auto-generated-0"></script>
   </head>
   <body>
   </body>
@@ -511,7 +511,7 @@ let%expect_test "External assets" =
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
   </head>
   <body>
   </body>
@@ -543,10 +543,10 @@ let%expect_test "Multiple embedded assets of multiple types are ordered correctl
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" type="text/css" href="auto-generated-5">
-    <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
-    <link rel="stylesheet" type="text/css" href="auto-generated-4">
-    <script defer src="auto-generated-3"></script>
+      <link rel="stylesheet" type="text/css" href="auto-generated-5">
+      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+      <link rel="stylesheet" type="text/css" href="auto-generated-4">
+      <script defer src="auto-generated-3"></script>
   </head>
   <body>
   </body>

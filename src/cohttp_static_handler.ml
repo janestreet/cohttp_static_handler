@@ -126,10 +126,12 @@ module Asset = struct
     ;;
   end
 
-  module Rel_and_type = struct
+  module Link_attrs = struct
     type t =
       { rel : string
       ; type_ : string
+      ; title : string option
+      (* here be dragons https://developer.mozilla.org/en-US/docs/Archive/Web_Standards/Correctly_Using_Titles_With_External_Stylesheets *)
       }
     [@@deriving sexp_of]
   end
@@ -137,22 +139,22 @@ module Asset = struct
   module Kind = struct
     type t =
       | Javascript
-      | Linked of Rel_and_type.t
+      | Linked of Link_attrs.t
       | Hosted of { type_ : string }
     [@@deriving sexp_of]
 
-    let css = Linked { rel = "stylesheet"; type_ = "text/css" }
-    let favicon = Linked { rel = "icon"; type_ = "image/x-icon" }
-    let favicon_svg = Linked { rel = "icon"; type_ = "image/svg+xml" }
+    let css = Linked { rel = "stylesheet"; type_ = "text/css"; title = None }
+    let favicon = Linked { rel = "icon"; type_ = "image/x-icon"; title = None }
+    let favicon_svg = Linked { rel = "icon"; type_ = "image/svg+xml"; title = None }
     let sourcemap = Hosted { type_ = "application/octet-stream" }
     let javascript = Javascript
 
-    let file ~rel ~type_ = Linked { rel; type_ }
+    let file ~rel ~type_ = Linked { rel; type_; title = None }
     let in_server ~type_ = Hosted { type_ }
 
     let content_type = function
       | Javascript -> "application/javascript"
-      | Linked { rel = (_ : string); type_ } -> type_
+      | Linked { rel = (_ : string); type_; title = (_ : string option) }
       | Hosted { type_ } -> type_
     ;;
   end
@@ -196,8 +198,9 @@ module Asset = struct
   [@@deriving sexp_of, variants]
 
   let to_html_lines t =
-    let make_link ~rel ~type_ ~filename =
-      sprintf {|<link rel="%s" type="%s" href="%s">|} rel type_ filename
+    let make_link ~title ~rel ~type_ ~filename =
+      let title_attr = Option.value_map ~default:"" ~f:(sprintf {| title="%s"|}) title in
+      sprintf {|<link rel="%s" type="%s" href="%s"%s>|} rel type_ filename title_attr
     in
     List.map t ~f:(function
       | Local local_resource ->
@@ -208,7 +211,7 @@ module Asset = struct
     |> List.filter_map ~f:(fun asset ->
       let filename = Asset.location asset in
       match Asset.kind asset with
-      | Linked { rel; type_ } -> Some (make_link ~rel ~type_ ~filename)
+      | Linked { rel; type_; title } -> Some (make_link ~title ~rel ~type_ ~filename)
       | Hosted { type_ = _ } -> None
       | Javascript ->
         (* From the HTML5 spec 4.12.1, regarding the [type] attribute:
@@ -250,6 +253,49 @@ module Asset = struct
 
   let local kind what_to_serve = Local (Local.create ~kind ~what_to_serve)
   let external_ ~url kind = External_ (External.create ~kind ~url)
+
+  module Opensearch_xml = struct
+    let content ~short_name ~description ~template =
+      [%string
+        {|<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>%{short_name}</ShortName>
+  <Description>%{description}</Description>
+  <Url type="text/html" method="get" template="%{template}"/>
+</OpenSearchDescription>|}]
+    ;;
+
+    let%expect_test "content sanity" =
+      content
+        ~short_name:"short"
+        ~description:"longer description"
+        ~template:"https://example.com/?q=(query {searchTerms})"
+      |> print_endline;
+      [%expect
+        {|
+        <?xml version="1.0" encoding="UTF-8"?>
+        <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+          <ShortName>short</ShortName>
+          <Description>longer description</Description>
+          <Url type="text/html" method="get" template="https://example.com/?q=(query {searchTerms})"/>
+        </OpenSearchDescription> |}];
+      Deferred.unit
+    ;;
+
+    let create ~template ~short_name ~description =
+      let kind =
+        Kind.Linked
+          { rel = "search"
+          ; type_ = "application/opensearchdescription+xml"
+          ; title = Some short_name
+          }
+      in
+      What_to_serve.embedded ~contents:(content ~short_name ~description ~template)
+      |> local kind
+    ;;
+  end
+
+  let opensearch_xml = Opensearch_xml.create
 end
 
 module Single_page_handler = struct
@@ -257,11 +303,11 @@ module Single_page_handler = struct
   type t = string
 
   let default = {|  <body>
-    </body>|}
+  </body>|}
 
   let default_with_body_div ~div_id =
     sprintf {|
- <body>
+  <body>
     <div id="%s">
     </div>
   </body>|} div_id
@@ -292,13 +338,13 @@ module Single_page_handler = struct
     *)
     sprintf
       {|
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8">%s%s
-    </head>
-  %s
-  </html>|}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">%s%s
+  </head>
+%s
+</html>|}
       title
       asset_lines
       t
