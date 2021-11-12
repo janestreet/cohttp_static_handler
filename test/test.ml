@@ -1,6 +1,5 @@
 open! Core
 open! Async
-module Re = Re_jane.Easy_mode
 
 module Debug_server : sig
   type t

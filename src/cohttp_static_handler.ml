@@ -2,7 +2,6 @@ open Core
 open Async
 open Cohttp
 open Cohttp_async
-module Time = Time_unix
 
 module Http_handler = struct
   type t = body:Body.t -> Socket.Address.Inet.t -> Request.t -> Server.response Deferred.t
