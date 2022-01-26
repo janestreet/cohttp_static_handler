@@ -130,13 +130,11 @@ let%expect_test "Static handler" =
     let%bind () =
       Debug_server.perform_request_and_print_body debug_server ~path:"/main0.js"
     in
-    [%expect {|
-    alert("hi"); |}];
+    [%expect {| alert("hi"); |}];
     let%map () =
       Debug_server.perform_request_and_print_body debug_server ~path:"/main1.js"
     in
-    [%expect {|
-    alert("bonjour"); |}])
+    [%expect {| alert("bonjour"); |}])
 ;;
 
 let%expect_test "Static single file handler" =
@@ -183,14 +181,86 @@ let%expect_test "Static single file handler" =
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file"
       in
-      [%expect {|
-    alert("from file") |}];
+      [%expect {| alert("from file") |}];
       let%bind () = Writer.save filename ~contents:{|alert("from file modified")|} in
       let%map () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file"
       in
-      [%expect {|
-    alert("from file modified") |}]))
+      [%expect {| alert("from file modified") |}]))
+;;
+
+let%expect_test "file_serve_as via assets" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let filename = dir ^/ "file" in
+    let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
+    let handler =
+      Cohttp_static_handler.Single_page_handler.create_handler
+        (Cohttp_static_handler.Single_page_handler.default_with_body_div ~div_id:"app")
+        ~assets:
+          Cohttp_static_handler.Asset.
+            [ local
+                (Kind.in_server ~type_:"application/javascript")
+                (What_to_serve.file_serve_as ~path:filename ~serve_as:"/main.js")
+            ]
+        ~on_unknown_url:`Not_found
+    in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%bind () =
+        Debug_server.perform_request_and_print_body debug_server ~path:"/"
+      in
+      [%expect
+        {|
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+      </head>
+
+      <body>
+        <div id="app">
+        </div>
+      </body>
+    </html> |}];
+      let%bind () =
+        Debug_server.perform_request_and_print_body debug_server ~path:"/main.js"
+      in
+      [%expect {| alert("from file") |}];
+      let%bind () = Writer.save filename ~contents:{|alert("from file modified")|} in
+      let%bind () =
+        Debug_server.perform_request_and_print_body debug_server ~path:"/main.js"
+      in
+      [%expect {| alert("from file modified") |}];
+      let%bind () =
+        Debug_server.perform_request_and_print_body debug_server ~path:"/file"
+      in
+      [%expect
+        {|
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>404 Not Found</title>
+        </head>
+        <body>
+          <h1>404 Not Found</h1>
+        </body>
+        </html> |}];
+      let%bind () =
+        Debug_server.perform_request_and_print_body debug_server ~path:filename
+      in
+      [%expect
+        {|
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>404 Not Found</title>
+        </head>
+        <body>
+          <h1>404 Not Found</h1>
+        </body>
+        </html> |}];
+      return ()))
 ;;
 
 let%expect_test "Static single file handler with title" =
@@ -253,13 +323,11 @@ let%expect_test "Static single file handler custom body html" =
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file.js"
       in
-      [%expect {|
-    alert("from file") |}];
+      [%expect {| alert("from file") |}];
       let%map () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file.css"
       in
-      [%expect {|
-    .error { color : red } |}]))
+      [%expect {| .error { color : red } |}]))
 ;;
 
 let%expect_test "Static single file handler serve any page" =
@@ -305,14 +373,12 @@ let%expect_test "Static single file handler serve any page" =
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file"
       in
-      [%expect {|
-    alert("from file") |}];
+      [%expect {| alert("from file") |}];
       let%bind () = Writer.save filename ~contents:{|alert("from file modified")|} in
       let%map () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file"
       in
-      [%expect {|
-    alert("from file modified") |}]))
+      [%expect {| alert("from file modified") |}]))
 ;;
 
 let%expect_test "Directory single handler" =
@@ -326,30 +392,25 @@ let%expect_test "Directory single handler" =
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file2"
       in
-      [%expect {|
-    <html> |}];
+      [%expect {| <html> |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file1"
       in
-      [%expect {|
-    alert("file 1") |}];
+      [%expect {| alert("file 1") |}];
       let%bind () = Writer.save file1 ~contents:{|alert("file 1 modified")|} in
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file1"
       in
-      [%expect {|
-    alert("file 1 modified") |}];
+      [%expect {| alert("file 1 modified") |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/"
       in
-      [%expect {|
-    <html><body><h1>404 Not Found</h1></body></html> |}];
+      [%expect {| <html><body><h1>404 Not Found</h1></body></html> |}];
       let%bind () = Writer.save (dir ^/ "index.html") ~contents:{|<html>|} in
       let%map () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/"
       in
-      [%expect {|
-    <html> |}]))
+      [%expect {| <html> |}]))
 ;;
 
 let%expect_test "Static handler with asset" =

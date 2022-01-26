@@ -1,2 +1,2 @@
-(library (name cohttp_static_handler) (libraries cohttp-async uri-sexp)
- (preprocess (pps ppx_jane)))
+(library (public_name cohttp_static_handler) (name cohttp_static_handler)
+ (libraries cohttp-async uri-sexp) (preprocess (pps ppx_jane)))

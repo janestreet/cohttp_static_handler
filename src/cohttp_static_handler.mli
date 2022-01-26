@@ -16,6 +16,7 @@ module Asset : sig
     val embedded : contents:string -> t
     val embedded_with_filename : filename:string -> contents:string -> t
     val file : path:string -> t
+    val file_serve_as : path:string -> serve_as:string -> t
   end
 
   module Kind : sig

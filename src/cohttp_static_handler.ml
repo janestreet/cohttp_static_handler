@@ -102,7 +102,10 @@ module Asset = struct
           { filename : string
           ; contents : string
           }
-      | File of { path : string }
+      | File of
+          { path : string
+          ; serve_as : string option
+          }
     [@@deriving sexp_of]
 
     let embedded_with_filename ~filename ~contents = Embedded { filename; contents }
@@ -117,11 +120,13 @@ module Asset = struct
       embedded_with_filename ~filename:(Generated_filename.create ()) ~contents
     ;;
 
-    let file ~path = File { path }
+    let file ~path = File { path; serve_as = None }
+    let file_serve_as ~path ~serve_as = File { path; serve_as = Some serve_as }
 
     let filename = function
       | Embedded { filename; contents = _ } -> filename
-      | File { path } -> path
+      | File { serve_as = None; path } -> path
+      | File { serve_as = Some serve_as; path = _ } -> serve_as
     ;;
   end
 
@@ -178,7 +183,7 @@ module Asset = struct
 
     let handler (t : t) =
       match t.location with
-      | File { path } -> stage (fun () -> respond_with_file_or_gzipped path)
+      | File { path; serve_as = _ } -> stage (fun () -> respond_with_file_or_gzipped path)
       | Embedded { filename = _; contents } ->
         let content_type = Kind.content_type t.kind in
         stage (fun () -> respond_string ~content_type contents)
