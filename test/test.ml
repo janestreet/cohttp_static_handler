@@ -37,8 +37,7 @@ end = struct
   let with_ handler ~f =
     let%bind t = create handler in
     Monitor.protect
-      ~run:
-        `Schedule
+      ~run:`Schedule
       ~rest:`Log
       ~finally:(fun () -> close t)
       (fun () -> f t)
