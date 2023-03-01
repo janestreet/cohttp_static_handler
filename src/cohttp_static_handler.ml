@@ -99,7 +99,7 @@ module Asset = struct
   module What_to_serve = struct
     type t =
       | Embedded of
-          { filename : string
+          { filename : string option
           ; contents : string
           }
       | File of
@@ -108,25 +108,18 @@ module Asset = struct
           }
     [@@deriving sexp_of]
 
-    let embedded_with_filename ~filename ~contents = Embedded { filename; contents }
-
-    module Generated_filename = struct
-      module Id = Unique_id.Int ()
-
-      let create () = sprintf !"auto-generated-%{Id}" (Id.create ())
-    end
-
-    let embedded ~contents =
-      embedded_with_filename ~filename:(Generated_filename.create ()) ~contents
+    let embedded_with_filename ~filename ~contents =
+      Embedded { filename = Some filename; contents }
     ;;
 
+    let embedded ~contents = Embedded { filename = None; contents }
     let file ~path = File { path; serve_as = None }
     let file_serve_as ~path ~serve_as = File { path; serve_as = Some serve_as }
 
     let filename = function
       | Embedded { filename; contents = _ } -> filename
-      | File { serve_as = None; path } -> path
-      | File { serve_as = Some serve_as; path = _ } -> serve_as
+      | File { serve_as = None; path } -> Some path
+      | File { serve_as = Some serve_as; path = _ } -> Some serve_as
     ;;
   end
 
@@ -201,15 +194,22 @@ module Asset = struct
     | External_ of External.t
   [@@deriving sexp_of, variants]
 
+  let asset_name_at_index ~what_to_serve ~index =
+    match What_to_serve.filename what_to_serve with
+    | Some filename -> Filename.basename filename
+    | None -> [%string "auto-generated-%{index#Int}"]
+  ;;
+
   let to_html_lines t =
     let make_link ~title ~rel ~type_ ~filename =
       let title_attr = Option.value_map ~default:"" ~f:(sprintf {| title="%s"|}) title in
       sprintf {|<link rel="%s" type="%s" href="%s"%s>|} rel type_ filename title_attr
     in
-    List.map t ~f:(function
+    List.mapi t ~f:(fun index asset ->
+      match asset with
       | Local local_resource ->
         Asset.map_location local_resource ~f:(fun what_to_serve ->
-          What_to_serve.filename what_to_serve |> Filename.basename)
+          asset_name_at_index ~what_to_serve ~index)
       | External_ external_resource ->
         Asset.map_location external_resource ~f:Uri.to_string)
     |> List.filter_map ~f:(fun asset ->
@@ -246,12 +246,14 @@ module Asset = struct
   ;;
 
   let to_map_with_handlers t =
-    List.filter_map t ~f:(function
+    List.filter_mapi t ~f:(fun index asset ->
+      match asset with
       | External_ (_ : External.t) -> None
       | Local asset ->
-        Some
-          ( Asset.location asset |> What_to_serve.filename |> Filename.basename
-          , Local.handler asset ))
+        let asset_name =
+          asset_name_at_index ~index ~what_to_serve:(Asset.location asset)
+        in
+        Some (asset_name, Local.handler asset))
     |> String.Map.of_alist_exn
   ;;
 
@@ -370,34 +372,5 @@ module Single_page_handler = struct
             | `Not_found -> respond_with_not_found ()
             | `Index -> serve_index ())
          | Some serve_fn -> (unstage serve_fn) ())
-  ;;
-
-  let js_handler ?log ?title ?(assets = []) t ~js_files ~css_files ~on_unknown_url =
-    let create_asset kind path = Asset.local kind (Asset.What_to_serve.file ~path) in
-    let assets =
-      [ List.map js_files ~f:(create_asset Asset.Kind.javascript)
-      ; List.map css_files ~f:(create_asset Asset.Kind.css)
-      ; assets
-      ]
-      |> List.concat
-    in
-    create_handler ?log ?title ~assets ~on_unknown_url t
-  ;;
-
-  let embedded_js_handler ?log ?title ?(assets = []) t ~scripts ~css ~on_unknown_url =
-    let embed kind ~suffix files =
-      List.mapi files ~f:(fun i contents ->
-        Asset.local
-          kind
-          (Embedded { filename = sprintf "main%d.%s" i suffix; contents }))
-    in
-    let js_files = embed Asset.Kind.javascript scripts ~suffix:"js" in
-    let css_files = embed Asset.Kind.css css ~suffix:"css" in
-    create_handler
-      ?log
-      ?title
-      ~assets:(List.concat [ js_files; css_files; assets ])
-      ~on_unknown_url
-      t
   ;;
 end

@@ -45,11 +45,14 @@ end = struct
 end
 
 let embedded_js_handler_default_single_page ~title ~scripts =
-  Cohttp_static_handler.Single_page_handler.embedded_js_handler
+  Cohttp_static_handler.Single_page_handler.create_handler
     Cohttp_static_handler.Single_page_handler.default
-    ~css:[]
     ?title
-    ~scripts
+    ~assets:
+      (List.map scripts ~f:(fun contents ->
+         Cohttp_static_handler.Asset.local
+           Cohttp_static_handler.Asset.Kind.javascript
+           (Cohttp_static_handler.Asset.What_to_serve.embedded ~contents)))
     ~on_unknown_url:`Not_found
 ;;
 
@@ -120,18 +123,22 @@ let%expect_test "Static handler" =
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-      <script defer src="main0.js"></script>
-      <script defer src="main1.js"></script>
+      <script defer src="auto-generated-0"></script>
+      <script defer src="auto-generated-1"></script>
   </head>
   <body>
   </body>
 </html> |}];
     let%bind () =
-      Debug_server.perform_request_and_print_body debug_server ~path:"/main0.js"
+      Debug_server.perform_request_and_print_body
+        debug_server
+        ~path:"/auto-generated-0"
     in
     [%expect {| alert("hi"); |}];
     let%map () =
-      Debug_server.perform_request_and_print_body debug_server ~path:"/main1.js"
+      Debug_server.perform_request_and_print_body
+        debug_server
+        ~path:"/auto-generated-1"
     in
     [%expect {| alert("bonjour"); |}])
 ;;
@@ -141,10 +148,12 @@ let%expect_test "Static single file handler" =
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
     let handler =
-      Cohttp_static_handler.Single_page_handler.js_handler
-        Cohttp_static_handler.Single_page_handler.default
-        ~css_files:[]
-        ~js_files:[ filename ]
+      let open Cohttp_static_handler in
+      Single_page_handler.create_handler
+        Single_page_handler.default
+        ~assets:
+          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename)
+          ]
         ~on_unknown_url:`Not_found
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
@@ -264,11 +273,10 @@ let%expect_test "file_serve_as via assets" =
 
 let%expect_test "Static single file handler with title" =
   let handler =
-    Cohttp_static_handler.Single_page_handler.js_handler
+    Cohttp_static_handler.Single_page_handler.create_handler
       Cohttp_static_handler.Single_page_handler.default
       ~title:"another very clever title"
-      ~css_files:[]
-      ~js_files:[]
+      ~assets:[]
       ~on_unknown_url:`Not_found
   in
   Debug_server.with_ handler ~f:(fun debug_server ->
@@ -296,10 +304,13 @@ let%expect_test "Static single file handler custom body html" =
     </body>|} in
     let t = Cohttp_static_handler.Single_page_handler.create ~body in
     let handler =
-      Cohttp_static_handler.Single_page_handler.js_handler
+      let open Cohttp_static_handler in
+      Single_page_handler.create_handler
         t
-        ~css_files:[ css_file ]
-        ~js_files:[ js_file ]
+        ~assets:
+          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:js_file)
+          ; Asset.local Asset.Kind.css (Asset.What_to_serve.file ~path:css_file)
+          ]
         ~on_unknown_url:`Not_found
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
@@ -334,10 +345,12 @@ let%expect_test "Static single file handler serve any page" =
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
     let handler =
-      Cohttp_static_handler.Single_page_handler.js_handler
-        Cohttp_static_handler.Single_page_handler.default
-        ~css_files:[]
-        ~js_files:[ filename ]
+      let open Cohttp_static_handler in
+      Single_page_handler.create_handler
+        Single_page_handler.default
+        ~assets:
+          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename)
+          ]
         ~on_unknown_url:`Index
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
@@ -417,15 +430,14 @@ let%expect_test "Static handler with asset" =
     let filename = dir ^/ "filename" in
     let%bind () = Writer.save filename ~contents:{|<?xml?>|} in
     let handler =
-      Cohttp_static_handler.Single_page_handler.js_handler
-        Cohttp_static_handler.Single_page_handler.default
-        ~css_files:[]
-        ~js_files:[]
+      let open Cohttp_static_handler in
+      Single_page_handler.create_handler
+        Single_page_handler.default
         ~assets:
-          [ Cohttp_static_handler.Asset.(
-              local
-                (Kind.file ~rel:"rel" ~type_:"type")
-                (What_to_serve.file ~path:filename))
+          [
+            Asset.local
+              (Asset.Kind.file ~rel:"rel" ~type_:"type")
+              (Asset.What_to_serve.file ~path:filename)
           ]
         ~on_unknown_url:`Not_found
     in
@@ -452,15 +464,15 @@ let%expect_test "Static handler with asset" =
 
 let%expect_test "Embedded asset with filename" =
   let handler =
-    Cohttp_static_handler.Single_page_handler.js_handler
-      Cohttp_static_handler.Single_page_handler.default
-      ~css_files:[]
-      ~js_files:[]
+    let open Cohttp_static_handler in
+    Single_page_handler.create_handler
+      Single_page_handler.default
       ~assets:
-        [ Cohttp_static_handler.Asset.(
-            local
-              Kind.css
-              (What_to_serve.embedded_with_filename ~filename:"a.css" ~contents:"// css"))
+        [ Asset.local
+            Asset.Kind.css
+            (Asset.What_to_serve.embedded_with_filename
+               ~filename:"a.css"
+               ~contents:"// css")
         ]
       ~on_unknown_url:`Not_found
   in
@@ -485,17 +497,15 @@ let%expect_test "Embedded asset with filename" =
 
 let%expect_test "Embedded (hosted) file with file name" =
   let handler =
-    Cohttp_static_handler.Single_page_handler.js_handler
-      Cohttp_static_handler.Single_page_handler.default
-      ~css_files:[]
-      ~js_files:[]
+    let open Cohttp_static_handler in
+    Single_page_handler.create_handler
+      Single_page_handler.default
       ~assets:
-        [ Cohttp_static_handler.Asset.(
-            local
-              Kind.sourcemap
-              (What_to_serve.embedded_with_filename
-                 ~filename:"foo.map"
-                 ~contents:"hi there"))
+        [ Asset.local
+            Asset.Kind.sourcemap
+            (Asset.What_to_serve.embedded_with_filename
+               ~filename:"foo.map"
+               ~contents:"hi there")
         ]
       ~on_unknown_url:`Not_found
   in
@@ -519,16 +529,14 @@ let%expect_test "Embedded (hosted) file with file name" =
 
 let%expect_test "Multiple embedded assets with generated names" =
   let handler =
-    Cohttp_static_handler.Single_page_handler.js_handler
-      Cohttp_static_handler.Single_page_handler.default
-      ~css_files:[]
-      ~js_files:[]
+    let open Cohttp_static_handler in
+    Single_page_handler.create_handler
+      Single_page_handler.default
       ~assets:
-        Cohttp_static_handler.Asset.
-          [ local Kind.css (What_to_serve.embedded ~contents:"")
-          ; local Kind.css (What_to_serve.embedded ~contents:"")
-          ; local Kind.javascript (What_to_serve.embedded ~contents:"")
-          ]
+        [ Asset.local Asset.Kind.css (Asset.What_to_serve.embedded ~contents:"")
+        ; Asset.local Asset.Kind.css (Asset.What_to_serve.embedded ~contents:"")
+        ; Asset.local Asset.Kind.javascript (Asset.What_to_serve.embedded ~contents:"")
+        ]
       ~on_unknown_url:`Not_found
   in
   Debug_server.with_ handler ~f:(fun debug_server ->
@@ -539,9 +547,9 @@ let%expect_test "Multiple embedded assets with generated names" =
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-      <link rel="stylesheet" type="text/css" href="auto-generated-2">
+      <link rel="stylesheet" type="text/css" href="auto-generated-0">
       <link rel="stylesheet" type="text/css" href="auto-generated-1">
-      <script defer src="auto-generated-0"></script>
+      <script defer src="auto-generated-2"></script>
   </head>
   <body>
   </body>
@@ -550,16 +558,14 @@ let%expect_test "Multiple embedded assets with generated names" =
 
 let%expect_test "External assets" =
   let handler =
-    Cohttp_static_handler.Single_page_handler.js_handler
-      Cohttp_static_handler.Single_page_handler.default
-      ~css_files:[]
-      ~js_files:[]
+    let open Cohttp_static_handler in
+    Single_page_handler.create_handler
+      Single_page_handler.default
       ~assets:
-        Cohttp_static_handler.Asset.
-          [ external_
-              ~url:(Uri.of_string "https://timezone-web/timezone-web/all-tz-v1.js")
-              Kind.javascript
-          ]
+        [ Asset.external_
+            ~url:(Uri.of_string "https://timezone-web/timezone-web/all-tz-v1.js")
+            Asset.Kind.javascript
+        ]
       ~on_unknown_url:`Not_found
   in
   Debug_server.with_ handler ~f:(fun debug_server ->
@@ -579,19 +585,17 @@ let%expect_test "External assets" =
 
 let%expect_test "Multiple embedded assets of multiple types are ordered correctly" =
   let handler =
-    Cohttp_static_handler.Single_page_handler.js_handler
-      Cohttp_static_handler.Single_page_handler.default
-      ~css_files:[]
-      ~js_files:[]
+    let open Cohttp_static_handler in
+    Single_page_handler.create_handler
+      Single_page_handler.default
       ~assets:
-        Cohttp_static_handler.Asset.
-          [ local Kind.css (What_to_serve.embedded ~contents:"")
-          ; external_
-              ~url:(Uri.of_string "https://timezone-web/timezone-web/all-tz-v1.js")
-              Kind.javascript
-          ; local Kind.css (What_to_serve.embedded ~contents:"")
-          ; local Kind.javascript (What_to_serve.embedded ~contents:"")
-          ]
+        [ Asset.local Asset.Kind.css (Asset.What_to_serve.embedded ~contents:"")
+        ; Asset.external_
+            ~url:(Uri.of_string "https://timezone-web/timezone-web/all-tz-v1.js")
+            Asset.Kind.javascript
+        ; Asset.local Asset.Kind.css (Asset.What_to_serve.embedded ~contents:"")
+        ; Asset.local Asset.Kind.javascript (Asset.What_to_serve.embedded ~contents:"")
+        ]
       ~on_unknown_url:`Not_found
   in
   Debug_server.with_ handler ~f:(fun debug_server ->
@@ -602,9 +606,57 @@ let%expect_test "Multiple embedded assets of multiple types are ordered correctl
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-      <link rel="stylesheet" type="text/css" href="auto-generated-5">
+      <link rel="stylesheet" type="text/css" href="auto-generated-0">
       <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
-      <link rel="stylesheet" type="text/css" href="auto-generated-4">
+      <link rel="stylesheet" type="text/css" href="auto-generated-2">
+      <script defer src="auto-generated-3"></script>
+  </head>
+  <body>
+  </body>
+</html> |}])
+;;
+
+let%expect_test "Embedded assets don't change their name after each request." =
+  let handler =
+    let open Cohttp_static_handler in
+    Single_page_handler.create_handler
+      Single_page_handler.default
+      ~assets:
+        [ Asset.local Asset.Kind.css (Asset.What_to_serve.embedded ~contents:"")
+        ; Asset.external_
+            ~url:(Uri.of_string "https://timezone-web/timezone-web/all-tz-v1.js")
+            Asset.Kind.javascript
+        ; Asset.local Asset.Kind.css (Asset.What_to_serve.embedded ~contents:"")
+        ; Asset.local Asset.Kind.javascript (Asset.What_to_serve.embedded ~contents:"")
+        ]
+      ~on_unknown_url:`Not_found
+  in
+  Debug_server.with_ handler ~f:(fun debug_server ->
+    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+    [%expect
+      {|
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+      <link rel="stylesheet" type="text/css" href="auto-generated-0">
+      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+      <link rel="stylesheet" type="text/css" href="auto-generated-2">
+      <script defer src="auto-generated-3"></script>
+  </head>
+  <body>
+  </body>
+</html> |}];
+    let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+    [%expect
+      {|
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+      <link rel="stylesheet" type="text/css" href="auto-generated-0">
+      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+      <link rel="stylesheet" type="text/css" href="auto-generated-2">
       <script defer src="auto-generated-3"></script>
   </head>
   <body>

@@ -92,33 +92,6 @@ module Single_page_handler : sig
     -> assets:Asset.t list
     -> on_unknown_url:[ `Not_found | `Index ]
     -> Http_handler.t
-
-  (** [js_handler] is a specialization of [create_handler] which takes in filenames for
-      javascript and css files directly. *)
-  val js_handler
-    :  ?log:Log.t
-    -> ?title:string
-    -> ?assets:Asset.t list
-    -> t
-    -> js_files:string list
-    -> css_files:string list
-    -> on_unknown_url:[ `Not_found | `Index ]
-    -> Http_handler.t
-
-  (** [embedded_js_handler] is a specialization of [create_handler] which takes in
-      javascript and css contents directly.
-
-      This can be used alongside [app/embed-file] to embed scripts in the executable at
-      compile time. *)
-  val embedded_js_handler
-    :  ?log:Log.t
-    -> ?title:string
-    -> ?assets:Asset.t list
-    -> t
-    -> scripts:string list
-    -> css:string list
-    -> on_unknown_url:[ `Not_found | `Index ]
-    -> Http_handler.t
 end
 
 (** [directory_handler ?log ?directory ()] returns a handler that serves all files in
