@@ -59,9 +59,7 @@ let embedded_js_handler_default_single_page ~title ~scripts =
 let%expect_test "Simplest possible embedded js handler" =
   embedded_js_handler_default_single_page ~title:None ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
-    let%bind () =
-      Debug_server.perform_request_and_print_body debug_server ~path:"/"
-    in
+    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
 <!DOCTYPE html>
@@ -73,9 +71,7 @@ let%expect_test "Simplest possible embedded js handler" =
   </body>
 </html> |}];
     let%map () =
-      Debug_server.perform_request_and_print_body
-        debug_server
-        ~path:"/nonexistant.js"
+      Debug_server.perform_request_and_print_body debug_server ~path:"/nonexistant.js"
     in
     [%expect
       {|
@@ -94,9 +90,7 @@ let%expect_test "Simplest possible embedded js handler" =
 let%expect_test "Simplest possible embedded js handler with title" =
   embedded_js_handler_default_single_page ~title:(Some "clever title") ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
-    let%map () =
-      Debug_server.perform_request_and_print_body debug_server ~path:"/"
-    in
+    let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
 <!DOCTYPE html>
@@ -114,9 +108,7 @@ let%expect_test "Static handler" =
     ~title:None
     ~scripts:[ {|alert("hi");|}; {|alert("bonjour");|} ]
   |> Debug_server.with_ ~f:(fun debug_server ->
-    let%bind () =
-      Debug_server.perform_request_and_print_body debug_server ~path:"/"
-    in
+    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
 <!DOCTYPE html>
@@ -152,14 +144,11 @@ let%expect_test "Static single file handler" =
       Single_page_handler.create_handler
         Single_page_handler.default
         ~assets:
-          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename)
-          ]
+          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename) ]
         ~on_unknown_url:`Not_found
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
-      let%bind () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
     <!DOCTYPE html>
@@ -213,9 +202,7 @@ let%expect_test "file_serve_as via assets" =
         ~on_unknown_url:`Not_found
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
-      let%bind () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
     <!DOCTYPE html>
@@ -314,9 +301,7 @@ let%expect_test "Static single file handler custom body html" =
         ~on_unknown_url:`Not_found
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
-      let%bind () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
     <!DOCTYPE html>
@@ -349,14 +334,11 @@ let%expect_test "Static single file handler serve any page" =
       Single_page_handler.create_handler
         Single_page_handler.default
         ~assets:
-          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename)
-          ]
+          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename) ]
         ~on_unknown_url:`Index
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
-      let%bind () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
     <!DOCTYPE html>
@@ -414,14 +396,10 @@ let%expect_test "Directory single handler" =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file1"
       in
       [%expect {| alert("file 1 modified") |}];
-      let%bind () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect {| <html><body><h1>404 Not Found</h1></body></html> |}];
       let%bind () = Writer.save (dir ^/ "index.html") ~contents:{|<html>|} in
-      let%map () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect {| <html> |}]))
 ;;
 
@@ -442,9 +420,7 @@ let%expect_test "Static handler with asset" =
         ~on_unknown_url:`Not_found
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
-      let%bind () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
 <!DOCTYPE html>
@@ -688,18 +664,14 @@ let%expect_test "Directory handler logging requests and file not found" =
         ()
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
-      let%bind () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
 1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
 1969-12-31 19:00:00.000000-05:00 ("File not found"(filename <TMPDIR>/index.html))
 <html><body><h1>404 Not Found</h1></body></html> |}];
       let%bind () = Writer.save (dir ^/ "index.html") ~contents:{|<html>|} in
-      let%map () =
-        Debug_server.perform_request_and_print_body debug_server ~path:"/"
-      in
+      let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
     1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
