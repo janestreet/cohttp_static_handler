@@ -1,4 +1,5 @@
 opam-version: "2.0"
+version: "v0.16.0"
 maintainer: "Jane Street developers"
 authors: ["Jane Street Group, LLC"]
 homepage: "https://github.com/janestreet/cohttp_static_handler"
@@ -10,8 +11,8 @@ build: [
   ["dune" "build" "-p" name "-j" jobs]
 ]
 depends: [
-  "ocaml" {>= "4.14.0"}
-  "ppx_jane"
+  "ocaml"        {>= "4.14.0"}
+  "ppx_jane"     {>= "v0.16" & < "v0.17"}
   "cohttp-async" {>= "2.5.7" & < "3.0.0" | >= "5.1.1" & < "6.0.0"}
   "dune"         {>= "2.0.0"}
   "uri-sexp"     {>= "3.0.0"}
