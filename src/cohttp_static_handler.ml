@@ -161,7 +161,7 @@ module Asset = struct
       { kind : Kind.t
       ; location : 'a
       }
-    [@@deriving fields, sexp_of]
+    [@@deriving fields ~getters ~iterators:create, sexp_of]
 
     let create = Fields.create
     let map_location t ~f = { t with location = f t.location }
