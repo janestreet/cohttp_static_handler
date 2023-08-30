@@ -128,7 +128,7 @@ module Asset = struct
       { rel : string
       ; type_ : string
       ; title : string option
-      (* here be dragons https://developer.mozilla.org/en-US/docs/Archive/Web_Standards/Correctly_Using_Titles_With_External_Stylesheets *)
+          (* here be dragons https://developer.mozilla.org/en-US/docs/Archive/Web_Standards/Correctly_Using_Titles_With_External_Stylesheets *)
       }
     [@@deriving sexp_of]
   end
@@ -145,7 +145,6 @@ module Asset = struct
     let favicon_svg = Linked { rel = "icon"; type_ = "image/svg+xml"; title = None }
     let sourcemap = Hosted { type_ = "application/octet-stream" }
     let javascript = Javascript
-
     let file ~rel ~type_ = Linked { rel; type_; title = None }
     let in_server ~type_ = Hosted { type_ }
 
@@ -213,12 +212,12 @@ module Asset = struct
       | External_ external_resource ->
         Asset.map_location external_resource ~f:Uri.to_string)
     |> List.filter_map ~f:(fun asset ->
-      let filename = Asset.location asset in
-      match Asset.kind asset with
-      | Linked { rel; type_; title } -> Some (make_link ~title ~rel ~type_ ~filename)
-      | Hosted { type_ = _ } -> None
-      | Javascript ->
-        (* From the HTML5 spec 4.12.1, regarding the [type] attribute:
+         let filename = Asset.location asset in
+         match Asset.kind asset with
+         | Linked { rel; type_; title } -> Some (make_link ~title ~rel ~type_ ~filename)
+         | Hosted { type_ = _ } -> None
+         | Javascript ->
+           (* From the HTML5 spec 4.12.1, regarding the [type] attribute:
            https://www.w3.org/TR/html5/semantics-scripting.html#elementdef-script
            ------------------
            The type attribute allows customization of the type of script represented:
@@ -242,7 +241,7 @@ module Asset = struct
 
            As such, we do not include the [type] attribute.
         *)
-        Some (sprintf {|<script defer src="%s"></script>|} filename))
+           Some (sprintf {|<script defer src="%s"></script>|} filename))
   ;;
 
   let to_map_with_handlers t =

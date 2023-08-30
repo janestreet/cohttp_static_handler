@@ -45,7 +45,6 @@ module Asset : sig
       https://developer.mozilla.org/en-US/docs/Web/OpenSearch
   *)
   val opensearch_xml : template:string -> short_name:string -> description:string -> t
-
 end
 
 module Single_page_handler : sig

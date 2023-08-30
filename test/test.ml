@@ -36,11 +36,7 @@ end = struct
 
   let with_ handler ~f =
     let%bind t = create handler in
-    Monitor.protect
-      ~run:`Schedule
-      ~rest:`Log
-      ~finally:(fun () -> close t)
-      (fun () -> f t)
+    Monitor.protect ~run:`Schedule ~rest:`Log ~finally:(fun () -> close t) (fun () -> f t)
   ;;
 end
 
@@ -59,9 +55,9 @@ let embedded_js_handler_default_single_page ~title ~scripts =
 let%expect_test "Simplest possible embedded js handler" =
   embedded_js_handler_default_single_page ~title:None ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
-    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
-    [%expect
-      {|
+       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+       [%expect
+         {|
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -70,11 +66,11 @@ let%expect_test "Simplest possible embedded js handler" =
   <body>
   </body>
 </html> |}];
-    let%map () =
-      Debug_server.perform_request_and_print_body debug_server ~path:"/nonexistant.js"
-    in
-    [%expect
-      {|
+       let%map () =
+         Debug_server.perform_request_and_print_body debug_server ~path:"/nonexistant.js"
+       in
+       [%expect
+         {|
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -90,9 +86,9 @@ let%expect_test "Simplest possible embedded js handler" =
 let%expect_test "Simplest possible embedded js handler with title" =
   embedded_js_handler_default_single_page ~title:(Some "clever title") ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
-    let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
-    [%expect
-      {|
+       let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+       [%expect
+         {|
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -108,9 +104,9 @@ let%expect_test "Static handler" =
     ~title:None
     ~scripts:[ {|alert("hi");|}; {|alert("bonjour");|} ]
   |> Debug_server.with_ ~f:(fun debug_server ->
-    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
-    [%expect
-      {|
+       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+       [%expect
+         {|
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -121,18 +117,18 @@ let%expect_test "Static handler" =
   <body>
   </body>
 </html> |}];
-    let%bind () =
-      Debug_server.perform_request_and_print_body
-        debug_server
-        ~path:"/auto-generated-0"
-    in
-    [%expect {| alert("hi"); |}];
-    let%map () =
-      Debug_server.perform_request_and_print_body
-        debug_server
-        ~path:"/auto-generated-1"
-    in
-    [%expect {| alert("bonjour"); |}])
+       let%bind () =
+         Debug_server.perform_request_and_print_body
+           debug_server
+           ~path:"/auto-generated-0"
+       in
+       [%expect {| alert("hi"); |}];
+       let%map () =
+         Debug_server.perform_request_and_print_body
+           debug_server
+           ~path:"/auto-generated-1"
+       in
+       [%expect {| alert("bonjour"); |}])
 ;;
 
 let%expect_test "Static single file handler" =
@@ -412,8 +408,7 @@ let%expect_test "Static handler with asset" =
       Single_page_handler.create_handler
         Single_page_handler.default
         ~assets:
-          [
-            Asset.local
+          [ Asset.local
               (Asset.Kind.file ~rel:"rel" ~type_:"type")
               (Asset.What_to_serve.file ~path:filename)
           ]
