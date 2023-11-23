@@ -17,6 +17,14 @@ module Asset : sig
     val embedded_with_filename : filename:string -> contents:string -> t
     val file : path:string -> t
     val file_serve_as : path:string -> serve_as:string -> t
+
+    (** Takes a path relative to the exe running, instead of where you called the exe
+        from. Useful for deploying XARs.  *)
+    val relative_to_me : path:string -> t
+
+    (** Takes a path relative to the exe running, instead of where you called the exe
+        from. Useful for deploying XARs.  *)
+    val relative_to_me_serve_as : path:string -> serve_as:string -> t
   end
 
   module Kind : sig

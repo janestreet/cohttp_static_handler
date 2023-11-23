@@ -35,14 +35,11 @@ let request_path req =
 ;;
 
 let log_request ?(log = Lazy.force Log.Global.log) inet path =
-  Log.sexp
-    log
-    ~level:`Debug
-    [%message "Serving http request" (inet : Socket.Address.Inet.t) path]
+  [%log.debug log "Serving http request" (inet : Socket.Address.Inet.t) path]
 ;;
 
 let log_file_not_found ?(log = Lazy.force Log.Global.log) filename =
-  Log.sexp log ~level:`Debug [%message "File not found" (filename : String.t)]
+  [%log.debug log "File not found" (filename : String.t)]
 ;;
 
 (** Same as [Cohttp_async.Server.respond_with_file], but if a gzipped version of the
@@ -115,6 +112,17 @@ module Asset = struct
     let embedded ~contents = Embedded { filename = None; contents }
     let file ~path = File { path; serve_as = None }
     let file_serve_as ~path ~serve_as = File { path; serve_as = Some serve_as }
+    let my_location = lazy (Filename.dirname (Core_unix.readlink "/proc/self/exe"))
+
+    let relative_to_me ~path =
+      let exe = force my_location in
+      File { path = Filename.concat exe path; serve_as = None }
+    ;;
+
+    let relative_to_me_serve_as ~path ~serve_as =
+      let exe = force my_location in
+      File { path = Filename.concat exe path; serve_as = Some serve_as }
+    ;;
 
     let filename = function
       | Embedded { filename; contents = _ } -> filename
