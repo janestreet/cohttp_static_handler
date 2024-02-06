@@ -105,24 +105,27 @@ module Asset = struct
           }
     [@@deriving sexp_of]
 
+    let my_location = lazy (Filename.dirname (Core_unix.readlink "/proc/self/exe"))
+
+    let file' ~relative_to ~path ~serve_as =
+      match relative_to with
+      | `Exe when Filename.is_relative path ->
+        let exe = force my_location in
+        File { path = Filename.concat exe path; serve_as }
+      | `Cwd | `Exe -> File { path; serve_as }
+    ;;
+
+    let file ~relative_to ~path = file' ~relative_to ~path ~serve_as:None
+
+    let file_serve_as ~relative_to ~path ~serve_as =
+      file' ~relative_to ~path ~serve_as:(Some serve_as)
+    ;;
+
     let embedded_with_filename ~filename ~contents =
       Embedded { filename = Some filename; contents }
     ;;
 
     let embedded ~contents = Embedded { filename = None; contents }
-    let file ~path = File { path; serve_as = None }
-    let file_serve_as ~path ~serve_as = File { path; serve_as = Some serve_as }
-    let my_location = lazy (Filename.dirname (Core_unix.readlink "/proc/self/exe"))
-
-    let relative_to_me ~path =
-      let exe = force my_location in
-      File { path = Filename.concat exe path; serve_as = None }
-    ;;
-
-    let relative_to_me_serve_as ~path ~serve_as =
-      let exe = force my_location in
-      File { path = Filename.concat exe path; serve_as = Some serve_as }
-    ;;
 
     let filename = function
       | Embedded { filename; contents = _ } -> filename

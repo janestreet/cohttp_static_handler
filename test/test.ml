@@ -140,7 +140,10 @@ let%expect_test "Static single file handler" =
       Single_page_handler.create_handler
         Single_page_handler.default
         ~assets:
-          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename) ]
+          [ Asset.local
+              Asset.Kind.javascript
+              (Asset.What_to_serve.file ~path:filename ~relative_to:`Cwd)
+          ]
         ~on_unknown_url:`Not_found
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
@@ -193,7 +196,10 @@ let%expect_test "file_serve_as via assets" =
           Cohttp_static_handler.Asset.
             [ local
                 (Kind.in_server ~type_:"application/javascript")
-                (What_to_serve.file_serve_as ~path:filename ~serve_as:"/main.js")
+                (What_to_serve.file_serve_as
+                   ~path:filename
+                   ~serve_as:"/main.js"
+                   ~relative_to:`Cwd)
             ]
         ~on_unknown_url:`Not_found
     in
@@ -254,6 +260,62 @@ let%expect_test "file_serve_as via assets" =
       return ()))
 ;;
 
+let%expect_test "relative assets" =
+  Expect_test_helpers_async.with_temp_dir (fun cwd_dir ->
+    let%bind () = Sys.chdir cwd_dir in
+    let cwd_file_name = "file" in
+    let%bind () = Writer.save cwd_file_name ~contents:{|alert("from file")|} in
+    let exe_location = Filename.dirname (Core_unix.readlink "/proc/self/exe") in
+    Filesystem_async.with_temp_file
+      ~in_dir:(File_path.of_string exe_location)
+      (fun exe_file_path ->
+      let exe_file_name =
+        exe_file_path
+        |> File_path.Absolute.basename
+        |> Option.value_exn
+        |> File_path.Part.to_string
+      in
+      let%bind () =
+        Writer.save
+          (File_path.Absolute.to_string exe_file_path)
+          ~contents:{|alert("from relative to exe file")|}
+      in
+      let handler =
+        Cohttp_static_handler.Single_page_handler.create_handler
+          (Cohttp_static_handler.Single_page_handler.default_with_body_div ~div_id:"app")
+          ~assets:
+            Cohttp_static_handler.Asset.
+              [ local
+                  Kind.javascript
+                  (What_to_serve.file_serve_as
+                     ~relative_to:`Cwd
+                     ~path:cwd_file_name
+                     ~serve_as:"/main_relative_to_cwd.js")
+              ; local
+                  Kind.javascript
+                  (What_to_serve.file_serve_as
+                     ~relative_to:`Exe
+                     ~path:exe_file_name
+                     ~serve_as:"/main_relative_to_exe.js")
+              ]
+          ~on_unknown_url:`Not_found
+      in
+      Debug_server.with_ handler ~f:(fun debug_server ->
+        let%bind () =
+          Debug_server.perform_request_and_print_body
+            debug_server
+            ~path:"/main_relative_to_cwd.js"
+        in
+        [%expect {| alert("from file") |}];
+        let%bind () =
+          Debug_server.perform_request_and_print_body
+            debug_server
+            ~path:"/main_relative_to_exe.js"
+        in
+        [%expect {| alert("from relative to exe file") |}];
+        return ())))
+;;
+
 let%expect_test "Static single file handler with title" =
   let handler =
     Cohttp_static_handler.Single_page_handler.create_handler
@@ -291,8 +353,12 @@ let%expect_test "Static single file handler custom body html" =
       Single_page_handler.create_handler
         t
         ~assets:
-          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:js_file)
-          ; Asset.local Asset.Kind.css (Asset.What_to_serve.file ~path:css_file)
+          [ Asset.local
+              Asset.Kind.javascript
+              (Asset.What_to_serve.file ~path:js_file ~relative_to:`Cwd)
+          ; Asset.local
+              Asset.Kind.css
+              (Asset.What_to_serve.file ~path:css_file ~relative_to:`Cwd)
           ]
         ~on_unknown_url:`Not_found
     in
@@ -330,7 +396,10 @@ let%expect_test "Static single file handler serve any page" =
       Single_page_handler.create_handler
         Single_page_handler.default
         ~assets:
-          [ Asset.local Asset.Kind.javascript (Asset.What_to_serve.file ~path:filename) ]
+          [ Asset.local
+              Asset.Kind.javascript
+              (Asset.What_to_serve.file ~path:filename ~relative_to:`Cwd)
+          ]
         ~on_unknown_url:`Index
     in
     Debug_server.with_ handler ~f:(fun debug_server ->
@@ -410,7 +479,7 @@ let%expect_test "Static handler with asset" =
         ~assets:
           [ Asset.local
               (Asset.Kind.file ~rel:"rel" ~type_:"type")
-              (Asset.What_to_serve.file ~path:filename)
+              (Asset.What_to_serve.file ~path:filename ~relative_to:`Cwd)
           ]
         ~on_unknown_url:`Not_found
     in
@@ -646,9 +715,9 @@ let%expect_test "Directory handler logging requests and file not found" =
       ~output:[ Log.Output.stderr () ]
       ~on_error:`Raise
       ~transform:(fun m ->
-        let message = Log.Message.message m |> strip_directory in
-        let time = Log.Message.time m in
-        Log.Message.create ~time (`String message))
+        let message = Log.Message_event.message m |> strip_directory in
+        let time = Log.Message_event.time m in
+        Log.Message_event.create ~time (`String message))
       ()
   in
   Expect_test_helpers_async.with_temp_dir (fun dir ->

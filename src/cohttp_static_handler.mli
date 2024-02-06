@@ -15,16 +15,21 @@ module Asset : sig
 
     val embedded : contents:string -> t
     val embedded_with_filename : filename:string -> contents:string -> t
-    val file : path:string -> t
-    val file_serve_as : path:string -> serve_as:string -> t
 
-    (** Takes a path relative to the exe running, instead of where you called the exe
-        from. Useful for deploying XARs.  *)
-    val relative_to_me : path:string -> t
+    (** [file] takes a string representing the  path to serve, and if the path is
+        relative, the [relative_to] parameter controls how the relative path resolution 
+        is performed:
+        - [`Cwd] is relative to the current working directory. It is the way most tooling
+          you're familiar with handles relative paths. It's useful for things like command
+          line tools or other tools that operate on various files in the tree.
+        - [`Exe] instead looks for files relative to the executable's [dirname]. This is
+          useful for binaries that are always looking for files in the same (relative)
+          location and is intended to be used for things like web servers that ship with
+          static JavaScript and CSS assets.  *)
+    val file : relative_to:[ `Cwd | `Exe ] -> path:string -> t
 
-    (** Takes a path relative to the exe running, instead of where you called the exe
-        from. Useful for deploying XARs.  *)
-    val relative_to_me_serve_as : path:string -> serve_as:string -> t
+    (** See [file] for more information on [relative_to] behavior.  *)
+    val file_serve_as : relative_to:[ `Cwd | `Exe ] -> path:string -> serve_as:string -> t
   end
 
   module Kind : sig
