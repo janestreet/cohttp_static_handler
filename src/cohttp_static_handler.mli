@@ -17,7 +17,7 @@ module Asset : sig
     val embedded_with_filename : filename:string -> contents:string -> t
 
     (** [file] takes a string representing the  path to serve, and if the path is
-        relative, the [relative_to] parameter controls how the relative path resolution 
+        relative, the [relative_to] parameter controls how the relative path resolution
         is performed:
         - [`Cwd] is relative to the current working directory. It is the way most tooling
           you're familiar with handles relative paths. It's useful for things like command
@@ -79,8 +79,9 @@ module Single_page_handler : sig
       actual body tags themselves. *)
   val create : body:string -> t
 
-  (** [create_handler ?log ?title t ~assets ~on_unknown_url] returns a handler that serves
-      the provided assets, along with an index page based on [t] that loads the assets.
+  (** [create_handler ?log ?title ?metadata t ~assets ~on_unknown_url] returns a handler
+      that serves the provided assets, along with an index page based on [t] that loads
+      the assets.
 
       [assets] will be included in the page via link or script declarations as appropriate
       for the type of asset.
@@ -96,10 +97,13 @@ module Single_page_handler : sig
       Requests are logged to [log], which defaults to [Log.Global.log].
 
       Setting [title] changes the page title displayed in the browser's title bar.
+
+      Setting [metadata] adds additional "meta" tags from pairs of (name * content).
   *)
   val create_handler
     :  ?log:Log.t
     -> ?title:string
+    -> ?metadata:(string * string) list
     -> t
     -> assets:Asset.t list
     -> on_unknown_url:[ `Not_found | `Index ]

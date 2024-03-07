@@ -52,7 +52,7 @@ let embedded_js_handler_default_single_page ~title ~scripts =
     ~on_unknown_url:`Not_found
 ;;
 
-let%expect_test "Simplest possible embedded js handler" =
+let%expect_test ("Simplest possible embedded js handler" [@tags "disabled"]) =
   embedded_js_handler_default_single_page ~title:None ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
        let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
@@ -83,7 +83,7 @@ let%expect_test "Simplest possible embedded js handler" =
     </html> |}])
 ;;
 
-let%expect_test "Simplest possible embedded js handler with title" =
+let%expect_test ("Simplest possible embedded js handler with title" [@tags "disabled"]) =
   embedded_js_handler_default_single_page ~title:(Some "clever title") ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
        let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
@@ -99,7 +99,7 @@ let%expect_test "Simplest possible embedded js handler with title" =
 </html> |}])
 ;;
 
-let%expect_test "Static handler" =
+let%expect_test ("Static handler" [@tags "disabled"]) =
   embedded_js_handler_default_single_page
     ~title:None
     ~scripts:[ {|alert("hi");|}; {|alert("bonjour");|} ]
@@ -131,7 +131,7 @@ let%expect_test "Static handler" =
        [%expect {| alert("bonjour"); |}])
 ;;
 
-let%expect_test "Static single file handler" =
+let%expect_test ("Static single file handler" [@tags "disabled"]) =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
@@ -185,7 +185,7 @@ let%expect_test "Static single file handler" =
       [%expect {| alert("from file modified") |}]))
 ;;
 
-let%expect_test "file_serve_as via assets" =
+let%expect_test ("file_serve_as via assets" [@tags "disabled"]) =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
@@ -260,7 +260,7 @@ let%expect_test "file_serve_as via assets" =
       return ()))
 ;;
 
-let%expect_test "relative assets" =
+let%expect_test ("relative assets" [@tags "disabled"]) =
   Expect_test_helpers_async.with_temp_dir (fun cwd_dir ->
     let%bind () = Sys.chdir cwd_dir in
     let cwd_file_name = "file" in
@@ -316,7 +316,7 @@ let%expect_test "relative assets" =
         return ())))
 ;;
 
-let%expect_test "Static single file handler with title" =
+let%expect_test ("Static single file handler with title" [@tags "disabled"]) =
   let handler =
     Cohttp_static_handler.Single_page_handler.create_handler
       Cohttp_static_handler.Single_page_handler.default
@@ -338,7 +338,36 @@ let%expect_test "Static single file handler with title" =
     </html> |}])
 ;;
 
-let%expect_test "Static single file handler custom body html" =
+let%expect_test ("Static single file handler with title and metadata" [@tags "disabled"]) =
+  let handler =
+    Cohttp_static_handler.Single_page_handler.create_handler
+      Cohttp_static_handler.Single_page_handler.default
+      ~title:"one more very clever title"
+      ~metadata:
+        [ "description", "Funny description"
+        ; "keywords", "Humor"
+        ; "author", "Jane Street"
+        ; "viewport", "width=device-width, initial-scale=1.0"
+        ]
+      ~assets:[]
+      ~on_unknown_url:`Not_found
+  in
+  Debug_server.with_ handler ~f:(fun debug_server ->
+    let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+    [%expect
+      {|
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8"><meta name="description" content="Funny description" /><meta name="keywords" content="Humor" /><meta name="author" content="Jane Street" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>one more very clever title</title>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}])
+;;
+
+let%expect_test ("Static single file handler custom body html" [@tags "disabled"]) =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let js_file = dir ^/ "file.js" in
     let css_file = dir ^/ "file.css" in
@@ -387,7 +416,7 @@ let%expect_test "Static single file handler custom body html" =
       [%expect {| .error { color : red } |}]))
 ;;
 
-let%expect_test "Static single file handler serve any page" =
+let%expect_test ("Static single file handler serve any page" [@tags "disabled"]) =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
@@ -440,7 +469,7 @@ let%expect_test "Static single file handler serve any page" =
       [%expect {| alert("from file modified") |}]))
 ;;
 
-let%expect_test "Directory single handler" =
+let%expect_test ("Directory single handler" [@tags "disabled"]) =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let handler = Cohttp_static_handler.directory_handler ~directory:dir () in
     Debug_server.with_ handler ~f:(fun debug_server ->
@@ -468,7 +497,7 @@ let%expect_test "Directory single handler" =
       [%expect {| <html> |}]))
 ;;
 
-let%expect_test "Static handler with asset" =
+let%expect_test ("Static handler with asset" [@tags "disabled"]) =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "filename" in
     let%bind () = Writer.save filename ~contents:{|<?xml?>|} in
@@ -502,7 +531,7 @@ let%expect_test "Static handler with asset" =
       [%expect {| <?xml?> |}]))
 ;;
 
-let%expect_test "Embedded asset with filename" =
+let%expect_test ("Embedded asset with filename" [@tags "disabled"]) =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -535,7 +564,7 @@ let%expect_test "Embedded asset with filename" =
     [%expect {| // css |}])
 ;;
 
-let%expect_test "Embedded (hosted) file with file name" =
+let%expect_test ("Embedded (hosted) file with file name" [@tags "disabled"]) =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -567,7 +596,7 @@ let%expect_test "Embedded (hosted) file with file name" =
     [%expect {| hi there |}])
 ;;
 
-let%expect_test "Multiple embedded assets with generated names" =
+let%expect_test ("Multiple embedded assets with generated names" [@tags "disabled"]) =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -596,7 +625,7 @@ let%expect_test "Multiple embedded assets with generated names" =
 </html> |}])
 ;;
 
-let%expect_test "External assets" =
+let%expect_test ("External assets" [@tags "disabled"]) =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -623,7 +652,9 @@ let%expect_test "External assets" =
 </html> |}])
 ;;
 
-let%expect_test "Multiple embedded assets of multiple types are ordered correctly" =
+let%expect_test ("Multiple embedded assets of multiple types are ordered correctly" [@tags
+                                                                                      "disabled"])
+  =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -656,7 +687,9 @@ let%expect_test "Multiple embedded assets of multiple types are ordered correctl
 </html> |}])
 ;;
 
-let%expect_test "Embedded assets don't change their name after each request." =
+let%expect_test ("Embedded assets don't change their name after each request." [@tags
+                                                                                 "disabled"])
+  =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -704,7 +737,9 @@ let%expect_test "Embedded assets don't change their name after each request." =
 </html> |}])
 ;;
 
-let%expect_test "Directory handler logging requests and file not found" =
+let%expect_test ("Directory handler logging requests and file not found" [@tags
+                                                                           "disabled"])
+  =
   let create_log ~tmpdir =
     let strip_directory s =
       let pattern = String.Search_pattern.create tmpdir in

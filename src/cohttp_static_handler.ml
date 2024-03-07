@@ -331,12 +331,20 @@ module Single_page_handler = struct
 
   let create ~body = body
 
-  let html ?title t ~assets : t =
+  let html ?title ?metadata t ~assets : t =
     let concat_and_prepend_newline = function
       | [] -> ""
       | lst ->
         let sep = "\n      " in
         sep ^ String.concat ~sep lst
+    in
+    let metadata =
+      match metadata with
+      | Some metadata ->
+        List.map metadata ~f:(fun (name, contents) ->
+          sprintf {|<meta name="%s" content="%s" />|} name contents)
+        |> String.concat
+      | None -> ""
     in
     let title =
       match title with
@@ -357,17 +365,18 @@ module Single_page_handler = struct
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">%s%s
+    <meta charset="UTF-8">%s%s%s
   </head>
 %s
 </html>|}
+      metadata
       title
       asset_lines
       t
   ;;
 
-  let create_handler ?log ?title t ~assets ~on_unknown_url =
-    let html = html ?title t ~assets in
+  let create_handler ?log ?title ?metadata t ~assets ~on_unknown_url =
+    let html = html ?title ?metadata t ~assets in
     let static_files = Asset.to_map_with_handlers assets in
     fun ~body:_ inet req ->
       let path = request_path req in
