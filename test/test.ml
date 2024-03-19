@@ -52,54 +52,57 @@ let embedded_js_handler_default_single_page ~title ~scripts =
     ~on_unknown_url:`Not_found
 ;;
 
-let%expect_test ("Simplest possible embedded js handler" [@tags "disabled"]) =
+let%expect_test "Simplest possible embedded js handler" =
   embedded_js_handler_default_single_page ~title:None ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
        let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
        [%expect
          {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-  </head>
-  <body>
-  </body>
-</html> |}];
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+        </head>
+        <body>
+        </body>
+      </html>
+      |}];
        let%map () =
          Debug_server.perform_request_and_print_body debug_server ~path:"/nonexistant.js"
        in
        [%expect
          {|
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>404 Not Found</title>
-    </head>
-    <body>
-      <h1>404 Not Found</h1>
-    </body>
-    </html> |}])
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>404 Not Found</title>
+      </head>
+      <body>
+        <h1>404 Not Found</h1>
+      </body>
+      </html>
+      |}])
 ;;
 
-let%expect_test ("Simplest possible embedded js handler with title" [@tags "disabled"]) =
+let%expect_test "Simplest possible embedded js handler with title" =
   embedded_js_handler_default_single_page ~title:(Some "clever title") ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
        let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
        [%expect
          {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8"><title>clever title</title>
-  </head>
-  <body>
-  </body>
-</html> |}])
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8"><title>clever title</title>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}])
 ;;
 
-let%expect_test ("Static handler" [@tags "disabled"]) =
+let%expect_test "Static handler" =
   embedded_js_handler_default_single_page
     ~title:None
     ~scripts:[ {|alert("hi");|}; {|alert("bonjour");|} ]
@@ -107,16 +110,17 @@ let%expect_test ("Static handler" [@tags "disabled"]) =
        let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
        [%expect
          {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <script defer src="auto-generated-0"></script>
-      <script defer src="auto-generated-1"></script>
-  </head>
-  <body>
-  </body>
-</html> |}];
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <script defer src="auto-generated-0"></script>
+            <script defer src="auto-generated-1"></script>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}];
        let%bind () =
          Debug_server.perform_request_and_print_body
            debug_server
@@ -131,7 +135,7 @@ let%expect_test ("Static handler" [@tags "disabled"]) =
        [%expect {| alert("bonjour"); |}])
 ;;
 
-let%expect_test ("Static single file handler" [@tags "disabled"]) =
+let%expect_test "Static single file handler" =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
@@ -150,30 +154,32 @@ let%expect_test ("Static single file handler" [@tags "disabled"]) =
       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-          <script defer src="file"></script>
-      </head>
-      <body>
-      </body>
-    </html> |}];
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+              <script defer src="file"></script>
+          </head>
+          <body>
+          </body>
+        </html>
+        |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/main.js"
       in
       [%expect
         {|
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>404 Not Found</title>
-    </head>
-    <body>
-      <h1>404 Not Found</h1>
-    </body>
-    </html> |}];
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>404 Not Found</title>
+        </head>
+        <body>
+          <h1>404 Not Found</h1>
+        </body>
+        </html>
+        |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file"
       in
@@ -185,7 +191,7 @@ let%expect_test ("Static single file handler" [@tags "disabled"]) =
       [%expect {| alert("from file modified") |}]))
 ;;
 
-let%expect_test ("file_serve_as via assets" [@tags "disabled"]) =
+let%expect_test "file_serve_as via assets" =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
@@ -207,17 +213,18 @@ let%expect_test ("file_serve_as via assets" [@tags "disabled"]) =
       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-      </head>
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+          </head>
 
-      <body>
-        <div id="app">
-        </div>
-      </body>
-    </html> |}];
+          <body>
+            <div id="app">
+            </div>
+          </body>
+        </html>
+        |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/main.js"
       in
@@ -241,7 +248,8 @@ let%expect_test ("file_serve_as via assets" [@tags "disabled"]) =
         <body>
           <h1>404 Not Found</h1>
         </body>
-        </html> |}];
+        </html>
+        |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:filename
       in
@@ -256,11 +264,12 @@ let%expect_test ("file_serve_as via assets" [@tags "disabled"]) =
         <body>
           <h1>404 Not Found</h1>
         </body>
-        </html> |}];
+        </html>
+        |}];
       return ()))
 ;;
 
-let%expect_test ("relative assets" [@tags "disabled"]) =
+let%expect_test "relative assets" =
   Expect_test_helpers_async.with_temp_dir (fun cwd_dir ->
     let%bind () = Sys.chdir cwd_dir in
     let cwd_file_name = "file" in
@@ -316,7 +325,7 @@ let%expect_test ("relative assets" [@tags "disabled"]) =
         return ())))
 ;;
 
-let%expect_test ("Static single file handler with title" [@tags "disabled"]) =
+let%expect_test "Static single file handler with title" =
   let handler =
     Cohttp_static_handler.Single_page_handler.create_handler
       Cohttp_static_handler.Single_page_handler.default
@@ -328,17 +337,18 @@ let%expect_test ("Static single file handler with title" [@tags "disabled"]) =
     let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8"><title>another very clever title</title>
-      </head>
-      <body>
-      </body>
-    </html> |}])
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8"><title>another very clever title</title>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}])
 ;;
 
-let%expect_test ("Static single file handler with title and metadata" [@tags "disabled"]) =
+let%expect_test "Static single file handler with title and metadata" =
   let handler =
     Cohttp_static_handler.Single_page_handler.create_handler
       Cohttp_static_handler.Single_page_handler.default
@@ -367,7 +377,7 @@ let%expect_test ("Static single file handler with title and metadata" [@tags "di
       |}])
 ;;
 
-let%expect_test ("Static single file handler custom body html" [@tags "disabled"]) =
+let%expect_test "Static single file handler custom body html" =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let js_file = dir ^/ "file.js" in
     let css_file = dir ^/ "file.css" in
@@ -395,17 +405,18 @@ let%expect_test ("Static single file handler custom body html" [@tags "disabled"
       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-          <script defer src="file.js"></script>
-          <link rel="stylesheet" type="text/css" href="file.css">
-      </head>
-      <body class=".error">
-          <div id="content"></div>
-        </body>
-    </html> |}];
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+              <script defer src="file.js"></script>
+              <link rel="stylesheet" type="text/css" href="file.css">
+          </head>
+          <body class=".error">
+              <div id="content"></div>
+            </body>
+        </html>
+        |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file.js"
       in
@@ -416,7 +427,7 @@ let%expect_test ("Static single file handler custom body html" [@tags "disabled"
       [%expect {| .error { color : red } |}]))
 ;;
 
-let%expect_test ("Static single file handler serve any page" [@tags "disabled"]) =
+let%expect_test "Static single file handler serve any page" =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
@@ -435,29 +446,31 @@ let%expect_test ("Static single file handler serve any page" [@tags "disabled"])
       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-          <script defer src="file"></script>
-      </head>
-      <body>
-      </body>
-    </html> |}];
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+              <script defer src="file"></script>
+          </head>
+          <body>
+          </body>
+        </html>
+        |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/main.js"
       in
       [%expect
         {|
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-          <script defer src="file"></script>
-      </head>
-      <body>
-      </body>
-    </html> |}];
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+              <script defer src="file"></script>
+          </head>
+          <body>
+          </body>
+        </html>
+        |}];
       let%bind () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/file"
       in
@@ -469,7 +482,7 @@ let%expect_test ("Static single file handler serve any page" [@tags "disabled"])
       [%expect {| alert("from file modified") |}]))
 ;;
 
-let%expect_test ("Directory single handler" [@tags "disabled"]) =
+let%expect_test "Directory single handler" =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let handler = Cohttp_static_handler.directory_handler ~directory:dir () in
     Debug_server.with_ handler ~f:(fun debug_server ->
@@ -497,7 +510,7 @@ let%expect_test ("Directory single handler" [@tags "disabled"]) =
       [%expect {| <html> |}]))
 ;;
 
-let%expect_test ("Static handler with asset" [@tags "disabled"]) =
+let%expect_test "Static handler with asset" =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "filename" in
     let%bind () = Writer.save filename ~contents:{|<?xml?>|} in
@@ -516,22 +529,23 @@ let%expect_test ("Static handler with asset" [@tags "disabled"]) =
       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <link rel="rel" type="type" href="filename">
-  </head>
-  <body>
-  </body>
-</html> |}];
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+              <link rel="rel" type="type" href="filename">
+          </head>
+          <body>
+          </body>
+        </html>
+        |}];
       let%map () =
         Debug_server.perform_request_and_print_body debug_server ~path:"/filename"
       in
       [%expect {| <?xml?> |}]))
 ;;
 
-let%expect_test ("Embedded asset with filename" [@tags "disabled"]) =
+let%expect_test "Embedded asset with filename" =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -549,22 +563,23 @@ let%expect_test ("Embedded asset with filename" [@tags "disabled"]) =
     let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <link rel="stylesheet" type="text/css" href="a.css">
-  </head>
-  <body>
-  </body>
-</html> |}];
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <link rel="stylesheet" type="text/css" href="a.css">
+        </head>
+        <body>
+        </body>
+      </html>
+      |}];
     let%map () =
       Debug_server.perform_request_and_print_body debug_server ~path:"/a.css"
     in
     [%expect {| // css |}])
 ;;
 
-let%expect_test ("Embedded (hosted) file with file name" [@tags "disabled"]) =
+let%expect_test "Embedded (hosted) file with file name" =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -582,21 +597,22 @@ let%expect_test ("Embedded (hosted) file with file name" [@tags "disabled"]) =
     let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-  </head>
-  <body>
-  </body>
-</html> |}];
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+        </head>
+        <body>
+        </body>
+      </html>
+      |}];
     let%map () =
       Debug_server.perform_request_and_print_body debug_server ~path:"/foo.map"
     in
     [%expect {| hi there |}])
 ;;
 
-let%expect_test ("Multiple embedded assets with generated names" [@tags "disabled"]) =
+let%expect_test "Multiple embedded assets with generated names" =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -612,20 +628,21 @@ let%expect_test ("Multiple embedded assets with generated names" [@tags "disable
     let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <link rel="stylesheet" type="text/css" href="auto-generated-0">
-      <link rel="stylesheet" type="text/css" href="auto-generated-1">
-      <script defer src="auto-generated-2"></script>
-  </head>
-  <body>
-  </body>
-</html> |}])
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <link rel="stylesheet" type="text/css" href="auto-generated-0">
+            <link rel="stylesheet" type="text/css" href="auto-generated-1">
+            <script defer src="auto-generated-2"></script>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}])
 ;;
 
-let%expect_test ("External assets" [@tags "disabled"]) =
+let%expect_test "External assets" =
   let handler =
     let open Cohttp_static_handler in
     Single_page_handler.create_handler
@@ -641,15 +658,16 @@ let%expect_test ("External assets" [@tags "disabled"]) =
     let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
-  </head>
-  <body>
-  </body>
-</html> |}])
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}])
 ;;
 
 let%expect_test ("Multiple embedded assets of multiple types are ordered correctly" [@tags
@@ -673,18 +691,19 @@ let%expect_test ("Multiple embedded assets of multiple types are ordered correct
     let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <link rel="stylesheet" type="text/css" href="auto-generated-0">
-      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
-      <link rel="stylesheet" type="text/css" href="auto-generated-2">
-      <script defer src="auto-generated-3"></script>
-  </head>
-  <body>
-  </body>
-</html> |}])
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <link rel="stylesheet" type="text/css" href="auto-generated-0">
+            <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+            <link rel="stylesheet" type="text/css" href="auto-generated-2">
+            <script defer src="auto-generated-3"></script>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}])
 ;;
 
 let%expect_test ("Embedded assets don't change their name after each request." [@tags
@@ -708,33 +727,35 @@ let%expect_test ("Embedded assets don't change their name after each request." [
     let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <link rel="stylesheet" type="text/css" href="auto-generated-0">
-      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
-      <link rel="stylesheet" type="text/css" href="auto-generated-2">
-      <script defer src="auto-generated-3"></script>
-  </head>
-  <body>
-  </body>
-</html> |}];
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <link rel="stylesheet" type="text/css" href="auto-generated-0">
+            <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+            <link rel="stylesheet" type="text/css" href="auto-generated-2">
+            <script defer src="auto-generated-3"></script>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}];
     let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
     [%expect
       {|
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-      <link rel="stylesheet" type="text/css" href="auto-generated-0">
-      <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
-      <link rel="stylesheet" type="text/css" href="auto-generated-2">
-      <script defer src="auto-generated-3"></script>
-  </head>
-  <body>
-  </body>
-</html> |}])
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <link rel="stylesheet" type="text/css" href="auto-generated-0">
+            <script defer src="https://timezone-web/timezone-web/all-tz-v1.js"></script>
+            <link rel="stylesheet" type="text/css" href="auto-generated-2">
+            <script defer src="auto-generated-3"></script>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}])
 ;;
 
 let%expect_test ("Directory handler logging requests and file not found" [@tags
@@ -766,13 +787,15 @@ let%expect_test ("Directory handler logging requests and file not found" [@tags
       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
-1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
-1969-12-31 19:00:00.000000-05:00 ("File not found"(filename <TMPDIR>/index.html))
-<html><body><h1>404 Not Found</h1></body></html> |}];
+        1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
+        1969-12-31 19:00:00.000000-05:00 ("File not found"(filename <TMPDIR>/index.html))
+        <html><body><h1>404 Not Found</h1></body></html>
+        |}];
       let%bind () = Writer.save (dir ^/ "index.html") ~contents:{|<html>|} in
       let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect
         {|
-    1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
-    <html> |}]))
+        1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
+        <html>
+        |}]))
 ;;

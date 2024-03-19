@@ -294,7 +294,8 @@ module Asset = struct
           <ShortName>short</ShortName>
           <Description>longer description</Description>
           <Url type="text/html" method="get" template="https://example.com/?q=(query {searchTerms})"/>
-        </OpenSearchDescription> |}];
+        </OpenSearchDescription>
+        |}];
       Deferred.unit
     ;;
 
