@@ -13,7 +13,7 @@ depends: [
   "ocaml" {>= "5.1.0"}
   "ppx_jane"
   "cohttp-async" {>= "2.5.7" & < "3.0.0" | >= "5.1.1" & < "6.0.0"}
-  "dune"         {>= "2.0.0"}
+  "dune"         {>= "3.11.0"}
   "uri-sexp"     {>= "3.0.0"}
 ]
 available: arch != "arm32" & arch != "x86_32"
