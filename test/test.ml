@@ -13,6 +13,7 @@ module Debug_server : sig
     -> 'a Deferred.t
 
   val perform_request_and_print_body : t -> path:string -> unit Deferred.t
+  val perform_request_and_print_headers_and_body : t -> path:string -> unit Deferred.t
 end = struct
   type t = (Socket.Address.Inet.t, int) Cohttp_async.Server.t
 
@@ -30,6 +31,16 @@ end = struct
     in
     let%map body = Cohttp_async.Body.to_string body in
     print_endline body
+  ;;
+
+  let perform_request_and_print_headers_and_body t ~path =
+    let port = Cohttp_async.Server.listening_on t in
+    let%bind (response : Cohttp.Response.t), body =
+      Cohttp_async.Client.get (Uri.of_string (sprintf "http://127.0.0.1:%d%s" port path))
+    in
+    let%map body = Cohttp_async.Body.to_string body in
+    let headers = Cohttp.Response.headers response in
+    print_s [%message (headers : Cohttp.Header.t) (body : string)]
   ;;
 
   let close t = Cohttp_async.Server.close t
@@ -55,9 +66,9 @@ let embedded_js_handler_default_single_page ~title ~scripts =
 let%expect_test "Simplest possible embedded js handler" =
   embedded_js_handler_default_single_page ~title:None ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
-       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
-       [%expect
-         {|
+    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+    [%expect
+      {|
       <!DOCTYPE html>
       <html lang="en">
         <head>
@@ -67,11 +78,11 @@ let%expect_test "Simplest possible embedded js handler" =
         </body>
       </html>
       |}];
-       let%map () =
-         Debug_server.perform_request_and_print_body debug_server ~path:"/nonexistant.js"
-       in
-       [%expect
-         {|
+    let%map () =
+      Debug_server.perform_request_and_print_body debug_server ~path:"/nonexistant.js"
+    in
+    [%expect
+      {|
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -88,9 +99,9 @@ let%expect_test "Simplest possible embedded js handler" =
 let%expect_test "Simplest possible embedded js handler with title" =
   embedded_js_handler_default_single_page ~title:(Some "clever title") ~scripts:[]
   |> Debug_server.with_ ~f:(fun debug_server ->
-       let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
-       [%expect
-         {|
+    let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+    [%expect
+      {|
       <!DOCTYPE html>
       <html lang="en">
         <head>
@@ -107,9 +118,9 @@ let%expect_test "Static handler" =
     ~title:None
     ~scripts:[ {|alert("hi");|}; {|alert("bonjour");|} ]
   |> Debug_server.with_ ~f:(fun debug_server ->
-       let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
-       [%expect
-         {|
+    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+    [%expect
+      {|
       <!DOCTYPE html>
       <html lang="en">
         <head>
@@ -121,18 +132,14 @@ let%expect_test "Static handler" =
         </body>
       </html>
       |}];
-       let%bind () =
-         Debug_server.perform_request_and_print_body
-           debug_server
-           ~path:"/auto-generated-0"
-       in
-       [%expect {| alert("hi"); |}];
-       let%map () =
-         Debug_server.perform_request_and_print_body
-           debug_server
-           ~path:"/auto-generated-1"
-       in
-       [%expect {| alert("bonjour"); |}])
+    let%bind () =
+      Debug_server.perform_request_and_print_body debug_server ~path:"/auto-generated-0"
+    in
+    [%expect {| alert("hi"); |}];
+    let%map () =
+      Debug_server.perform_request_and_print_body debug_server ~path:"/auto-generated-1"
+    in
+    [%expect {| alert("bonjour"); |}])
 ;;
 
 let%expect_test "Static single file handler" =
@@ -191,7 +198,7 @@ let%expect_test "Static single file handler" =
       [%expect {| alert("from file modified") |}]))
 ;;
 
-let%expect_test "file_serve_as via assets" =
+let%expect_test "file' serve_as via assets" =
   Expect_test_helpers_async.with_temp_dir (fun dir ->
     let filename = dir ^/ "file" in
     let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
@@ -202,10 +209,11 @@ let%expect_test "file_serve_as via assets" =
           Cohttp_static_handler.Asset.
             [ local
                 (Kind.in_server ~type_:"application/javascript")
-                (What_to_serve.file_serve_as
+                (What_to_serve.file'
                    ~path:filename
                    ~serve_as:"/main.js"
-                   ~relative_to:`Cwd)
+                   ~relative_to:`Cwd
+                   ())
             ]
         ~on_unknown_url:`Not_found
     in
@@ -269,6 +277,44 @@ let%expect_test "file_serve_as via assets" =
       return ()))
 ;;
 
+let%expect_test "file' with headers" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let filename = dir ^/ "main.js" in
+    let%bind () = Writer.save filename ~contents:{|alert("from file")|} in
+    let handler =
+      Cohttp_static_handler.Single_page_handler.create_handler
+        (Cohttp_static_handler.Single_page_handler.default_with_body_div ~div_id:"app")
+        ~assets:
+          Cohttp_static_handler.Asset.
+            [ local
+                (Kind.in_server ~type_:"application/javascript")
+                (What_to_serve.file'
+                   ~path:filename
+                   ~relative_to:`Cwd
+                   ~headers:
+                     (Cohttp.Header.of_list
+                        [ "Cache-Control", "public, max-age=31536000, immutable" ])
+                   ())
+            ]
+        ~on_unknown_url:`Not_found
+    in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%bind () =
+        Debug_server.perform_request_and_print_headers_and_body
+          debug_server
+          ~path:"/main.js"
+      in
+      [%expect
+        {|
+        ((headers
+          ((cache-control "public, max-age=31536000, immutable")
+           (connection keep-alive) (content-type application/javascript)
+           (transfer-encoding chunked)))
+         (body "alert(\"from file\")"))
+        |}];
+      Deferred.unit))
+;;
+
 let%expect_test "relative assets" =
   Expect_test_helpers_async.with_temp_dir (fun cwd_dir ->
     let%bind () = Sys.chdir cwd_dir in
@@ -278,51 +324,128 @@ let%expect_test "relative assets" =
     Filesystem_async.with_temp_file
       ~in_dir:(File_path.of_string exe_location)
       (fun exe_file_path ->
-      let exe_file_name =
-        exe_file_path
-        |> File_path.Absolute.basename
-        |> Option.value_exn
-        |> File_path.Part.to_string
-      in
+         let exe_file_name =
+           exe_file_path
+           |> File_path.Absolute.basename
+           |> Option.value_exn
+           |> File_path.Part.to_string
+         in
+         let%bind () =
+           Writer.save
+             (File_path.Absolute.to_string exe_file_path)
+             ~contents:{|alert("from relative to exe file")|}
+         in
+         let handler =
+           Cohttp_static_handler.Single_page_handler.create_handler
+             (Cohttp_static_handler.Single_page_handler.default_with_body_div
+                ~div_id:"app")
+             ~assets:
+               Cohttp_static_handler.Asset.
+                 [ local
+                     Kind.javascript
+                     (What_to_serve.file'
+                        ~relative_to:`Cwd
+                        ~path:cwd_file_name
+                        ~serve_as:"/main_relative_to_cwd.js"
+                        ())
+                 ; local
+                     Kind.javascript
+                     (What_to_serve.file'
+                        ~relative_to:`Exe
+                        ~path:exe_file_name
+                        ~serve_as:"/main_relative_to_exe.js"
+                        ())
+                 ]
+             ~on_unknown_url:`Not_found
+         in
+         Debug_server.with_ handler ~f:(fun debug_server ->
+           let%bind () =
+             Debug_server.perform_request_and_print_body
+               debug_server
+               ~path:"/main_relative_to_cwd.js"
+           in
+           [%expect {| alert("from file") |}];
+           let%bind () =
+             Debug_server.perform_request_and_print_body
+               debug_server
+               ~path:"/main_relative_to_exe.js"
+           in
+           [%expect {| alert("from relative to exe file") |}];
+           return ())))
+;;
+
+let%expect_test "gzipped assets" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let exe_file_path = dir ^/ "main.js.gz" in
+    let%bind () = Writer.save exe_file_path ~contents:{|alert("from gzipped file")|} in
+    let handler =
+      Cohttp_static_handler.Single_page_handler.create_handler
+        (Cohttp_static_handler.Single_page_handler.default_with_body_div ~div_id:"app")
+        ~assets:
+          Cohttp_static_handler.Asset.
+            [ local
+                Kind.javascript
+                (What_to_serve.file'
+                   ~relative_to:`Cwd
+                   ~path:exe_file_path
+                   ~serve_as:"/main.js"
+                   ())
+            ]
+        ~on_unknown_url:`Not_found
+    in
+    Debug_server.with_ handler ~f:(fun debug_server ->
       let%bind () =
-        Writer.save
-          (File_path.Absolute.to_string exe_file_path)
-          ~contents:{|alert("from relative to exe file")|}
+        Debug_server.perform_request_and_print_headers_and_body
+          debug_server
+          ~path:"/main.js"
       in
-      let handler =
-        Cohttp_static_handler.Single_page_handler.create_handler
-          (Cohttp_static_handler.Single_page_handler.default_with_body_div ~div_id:"app")
-          ~assets:
-            Cohttp_static_handler.Asset.
-              [ local
-                  Kind.javascript
-                  (What_to_serve.file_serve_as
-                     ~relative_to:`Cwd
-                     ~path:cwd_file_name
-                     ~serve_as:"/main_relative_to_cwd.js")
-              ; local
-                  Kind.javascript
-                  (What_to_serve.file_serve_as
-                     ~relative_to:`Exe
-                     ~path:exe_file_name
-                     ~serve_as:"/main_relative_to_exe.js")
-              ]
-          ~on_unknown_url:`Not_found
+      [%expect
+        {|
+        ((headers
+          ((connection keep-alive) (content-type application/javascript)
+           (transfer-encoding chunked)))
+         (body "alert(\"from gzipped file\")"))
+        |}];
+      return ()))
+;;
+
+let%expect_test "wasm assets" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let wasm_file_path = dir ^/ "main.js.wasm" in
+    let%bind () =
+      Writer.save
+        wasm_file_path
+        ~contents:{|unreadable binary representation of webassembly|}
+    in
+    let handler =
+      Cohttp_static_handler.Single_page_handler.create_handler
+        (Cohttp_static_handler.Single_page_handler.default_with_body_div ~div_id:"app")
+        ~assets:
+          Cohttp_static_handler.Asset.
+            [ local
+                Kind.wasm
+                (What_to_serve.file'
+                   ~relative_to:`Cwd
+                   ~path:wasm_file_path
+                   ~serve_as:"/main.js.wasm"
+                   ())
+            ]
+        ~on_unknown_url:`Not_found
+    in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%bind () =
+        Debug_server.perform_request_and_print_headers_and_body
+          debug_server
+          ~path:"/main.js.wasm"
       in
-      Debug_server.with_ handler ~f:(fun debug_server ->
-        let%bind () =
-          Debug_server.perform_request_and_print_body
-            debug_server
-            ~path:"/main_relative_to_cwd.js"
-        in
-        [%expect {| alert("from file") |}];
-        let%bind () =
-          Debug_server.perform_request_and_print_body
-            debug_server
-            ~path:"/main_relative_to_exe.js"
-        in
-        [%expect {| alert("from relative to exe file") |}];
-        return ())))
+      [%expect
+        {|
+        ((headers
+          ((connection keep-alive) (content-type application/wasm)
+           (transfer-encoding chunked)))
+         (body "unreadable binary representation of webassembly"))
+        |}];
+      return ()))
 ;;
 
 let%expect_test "Static single file handler with title" =
@@ -383,9 +506,11 @@ let%expect_test "Static single file handler custom body html" =
     let css_file = dir ^/ "file.css" in
     let%bind () = Writer.save js_file ~contents:{|alert("from file")|} in
     let%bind () = Writer.save css_file ~contents:{|.error { color : red }|} in
-    let body = {|  <body class=".error">
+    let body =
+      {|  <body class=".error">
       <div id="content"></div>
-    </body>|} in
+    </body>|}
+    in
     let t = Cohttp_static_handler.Single_page_handler.create ~body in
     let handler =
       let open Cohttp_static_handler in

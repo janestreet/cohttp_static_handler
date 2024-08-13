@@ -28,8 +28,16 @@ module Asset : sig
           static JavaScript and CSS assets.  *)
     val file : relative_to:[ `Cwd | `Exe ] -> path:string -> t
 
-    (** See [file] for more information on [relative_to] behavior.  *)
-    val file_serve_as : relative_to:[ `Cwd | `Exe ] -> path:string -> serve_as:string -> t
+    (** See [file] for more information on [relative_to] behavior. This
+        variation allows for specification of Http Headers to be served
+        along with the asset. *)
+    val file'
+      :  ?headers:Cohttp.Header.t
+      -> ?serve_as:string
+      -> path:string
+      -> relative_to:[ `Cwd | `Exe ]
+      -> unit
+      -> t
   end
 
   module Kind : sig
@@ -37,6 +45,7 @@ module Asset : sig
 
     val css : t
     val javascript : t
+    val wasm : t
     val favicon : t
     val favicon_svg : t
     val sourcemap : t
