@@ -24,22 +24,23 @@ end = struct
       handler
   ;;
 
-  let perform_request_and_print_body t ~path =
-    let port = Cohttp_async.Server.listening_on t in
-    let%bind (_ : Cohttp.Response.t), body =
-      Cohttp_async.Client.get (Uri.of_string (sprintf "http://127.0.0.1:%d%s" port path))
-    in
-    let%map body = Cohttp_async.Body.to_string body in
-    print_endline body
-  ;;
-
-  let perform_request_and_print_headers_and_body t ~path =
+  let perform_request_and_return_headers_and_body t ~path =
     let port = Cohttp_async.Server.listening_on t in
     let%bind (response : Cohttp.Response.t), body =
       Cohttp_async.Client.get (Uri.of_string (sprintf "http://127.0.0.1:%d%s" port path))
     in
     let%map body = Cohttp_async.Body.to_string body in
     let headers = Cohttp.Response.headers response in
+    headers, body
+  ;;
+
+  let perform_request_and_print_body t ~path =
+    let%map _, body = perform_request_and_return_headers_and_body t ~path in
+    print_endline body
+  ;;
+
+  let perform_request_and_print_headers_and_body t ~path =
+    let%map headers, body = perform_request_and_return_headers_and_body t ~path in
     print_s [%message (headers : Cohttp.Header.t) (body : string)]
   ;;
 
