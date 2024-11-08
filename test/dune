@@ -2,6 +2,6 @@
  (name test_cohttp_static_handler)
  (libraries async cohttp cohttp-async cohttp_static_handler core core_unix
    expect_test_helpers_async expect_test_helpers_core file_path
-   filesystem_async uri)
+   filesystem.async uri)
  (preprocess
   (pps ppx_jane)))

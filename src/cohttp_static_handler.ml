@@ -73,8 +73,12 @@ let directory_handler ?log ?directory () ~body:_ inet req =
   respond_with_file_or_gzipped ?log filename
 ;;
 
-let respond_string ~content_type ?flush ?headers ?status s =
-  let headers = Cohttp.Header.add_opt headers "Content-Type" content_type in
+let respond_string ?content_type ?flush ?headers ?status s =
+  let headers =
+    match content_type with
+    | None -> Option.value headers ~default:(Cohttp.Header.init ())
+    | Some content_type -> Cohttp.Header.add_opt headers "Content-Type" content_type
+  in
   Cohttp_async.Server.respond_string ?flush ~headers ?status s
 ;;
 
@@ -153,11 +157,14 @@ module Asset = struct
   module Link_attrs = struct
     type t =
       { rel : string
-      ; type_ : string
+      ; type_ : string option
       ; title : string option
-      (* here be dragons https://developer.mozilla.org/en-US/docs/Archive/Web_Standards/Correctly_Using_Titles_With_External_Stylesheets *)
+          (* here be dragons https://developer.mozilla.org/en-US/docs/Archive/Web_Standards/Correctly_Using_Titles_With_External_Stylesheets *)
+      ; attrs : (string * string) list
       }
     [@@deriving sexp_of]
+
+    let create ~rel ?type_ ?title ?(attrs = []) () = { rel; type_; title; attrs }
   end
 
   module Kind = struct
@@ -165,22 +172,32 @@ module Asset = struct
       | Javascript
       | Wasm
       | Linked of Link_attrs.t
-      | Hosted of { type_ : string }
+      | Hosted of { type_ : string option }
     [@@deriving sexp_of]
 
-    let css = Linked { rel = "stylesheet"; type_ = "text/css"; title = None }
-    let favicon = Linked { rel = "icon"; type_ = "image/x-icon"; title = None }
-    let favicon_svg = Linked { rel = "icon"; type_ = "image/svg+xml"; title = None }
-    let sourcemap = Hosted { type_ = "application/octet-stream" }
+    let css = Linked (Link_attrs.create ~rel:"stylesheet" ~type_:"text/css" ())
+    let favicon = Linked (Link_attrs.create ~rel:"icon" ~type_:"image/x-icon" ())
+    let favicon_svg = Linked (Link_attrs.create ~rel:"icon" ~type_:"image/svg+xml" ())
+    let sourcemap = Hosted { type_ = Some "application/octet-stream" }
     let javascript = Javascript
     let wasm = Wasm
-    let file ~rel ~type_ = Linked { rel; type_; title = None }
-    let in_server ~type_ = Hosted { type_ }
+    let file ~rel ~type_ = Linked (Link_attrs.create ~rel ~type_ ())
+
+    let linked ~rel ?type_ ?title ?attrs () =
+      Linked (Link_attrs.create ~rel ?type_ ?title ?attrs ())
+    ;;
+
+    let in_server ~type_ = Hosted { type_ = Some type_ }
 
     let content_type = function
-      | Javascript -> "application/javascript"
-      | Wasm -> "application/wasm"
-      | Linked { rel = (_ : string); type_; title = (_ : string option) }
+      | Javascript -> Some "application/javascript"
+      | Wasm -> Some "application/wasm"
+      | Linked
+          { rel = (_ : string)
+          ; type_
+          ; title = (_ : string option)
+          ; attrs = (_ : (string * string) list)
+          }
       | Hosted { type_ } -> type_
     ;;
   end
@@ -207,9 +224,9 @@ module Asset = struct
       let content_type = Kind.content_type t.kind in
       match t.location with
       | File { path; serve_as = _; serve_as_query_params = _; headers } ->
-        stage (fun () -> respond_with_file_or_gzipped ?headers ~content_type path)
+        stage (fun () -> respond_with_file_or_gzipped ?headers ?content_type path)
       | Embedded { filename = _; contents; headers } ->
-        stage (fun () -> respond_string ?headers ~content_type contents)
+        stage (fun () -> respond_string ?headers ?content_type contents)
     ;;
   end
 
@@ -231,9 +248,15 @@ module Asset = struct
   ;;
 
   let to_html_lines t =
-    let make_link ~title ~rel ~type_ ~filename =
+    let make_link ~filename link_attrs =
+      let { Link_attrs.rel; type_; title; attrs } = link_attrs in
+      let type_attr = Option.value_map ~default:"" ~f:(sprintf {| type="%s"|}) type_ in
       let title_attr = Option.value_map ~default:"" ~f:(sprintf {| title="%s"|}) title in
-      sprintf {|<link rel="%s" type="%s" href="%s"%s>|} rel type_ filename title_attr
+      let attrs =
+        List.map attrs ~f:(fun (key, value) -> sprintf {| %s="%s"|} key value)
+        |> String.concat
+      in
+      sprintf {|<link rel="%s"%s href="%s"%s%s>|} rel type_attr filename title_attr attrs
     in
     List.mapi t ~f:(fun index asset ->
       match asset with
@@ -245,7 +268,7 @@ module Asset = struct
     |> List.filter_map ~f:(fun asset ->
       let filename = Asset.location asset in
       match Asset.kind asset with
-      | Linked { rel; type_; title } -> Some (make_link ~title ~rel ~type_ ~filename)
+      | Linked link_attrs -> Some (make_link ~filename link_attrs)
       | Hosted { type_ = _ } | Wasm -> None
       | Javascript ->
         (* From the HTML5 spec 4.12.1, regarding the [type] attribute:
@@ -325,10 +348,11 @@ module Asset = struct
     let create ~template ~short_name ~description =
       let kind =
         Kind.Linked
-          { rel = "search"
-          ; type_ = "application/opensearchdescription+xml"
-          ; title = Some short_name
-          }
+          (Link_attrs.create
+             ~rel:"search"
+             ~type_:"application/opensearchdescription+xml"
+             ~title:short_name
+             ())
       in
       What_to_serve.embedded ~contents:(content ~short_name ~description ~template)
       |> local kind

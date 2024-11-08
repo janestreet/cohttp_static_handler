@@ -50,6 +50,15 @@ module Asset : sig
     val favicon_svg : t
     val sourcemap : t
     val file : rel:string -> type_:string -> t
+
+    val linked
+      :  rel:string
+      -> ?type_:string
+      -> ?title:string
+      -> ?attrs:(string * string) list
+      -> unit
+      -> t
+
     val in_server : type_:string -> t
   end
 
