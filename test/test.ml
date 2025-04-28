@@ -796,8 +796,8 @@ let%expect_test "External assets" =
       |}])
 ;;
 
-let%expect_test ("Multiple embedded assets of multiple types are ordered correctly" [@tags
-                                                                                      "disabled"])
+let%expect_test ("Multiple embedded assets of multiple types are ordered correctly"
+  [@tags "disabled"])
   =
   let handler =
     let open Cohttp_static_handler in
@@ -832,8 +832,8 @@ let%expect_test ("Multiple embedded assets of multiple types are ordered correct
       |}])
 ;;
 
-let%expect_test ("Embedded assets don't change their name after each request." [@tags
-                                                                                 "disabled"])
+let%expect_test ("Embedded assets don't change their name after each request."
+  [@tags "disabled"])
   =
   let handler =
     let open Cohttp_static_handler in
@@ -884,8 +884,8 @@ let%expect_test ("Embedded assets don't change their name after each request." [
       |}])
 ;;
 
-let%expect_test ("Directory handler logging requests and file not found" [@tags
-                                                                           "disabled"])
+let%expect_test ("Directory handler logging requests and file not found"
+  [@tags "disabled"])
   =
   let create_log ~tmpdir =
     let strip_directory s =
@@ -924,4 +924,35 @@ let%expect_test ("Directory handler logging requests and file not found" [@tags
         1969-12-31 19:00:00.000000-05:00 ("Serving http request"(inet 127.0.0.1:PORT)/)
         <html>
         |}]))
+;;
+
+let async_js_handler ~title ~scripts =
+  Cohttp_static_handler.Single_page_handler.create_handler
+    Cohttp_static_handler.Single_page_handler.default
+    ?title
+    ~assets:
+      (List.map scripts ~f:(fun script ->
+         Cohttp_static_handler.Asset.external_
+           ~url:(Uri.of_string script)
+           Cohttp_static_handler.Asset.Kind.async_javascript))
+    ~on_unknown_url:`Not_found
+;;
+
+let%expect_test "async javascript tag" =
+  async_js_handler ~title:None ~scripts:[ "https://analytics.com/v1/analytics.js" ]
+  |> Debug_server.with_ ~f:(fun debug_server ->
+    let%bind () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
+    [%expect
+      {|
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+            <script async src="https://analytics.com/v1/analytics.js"></script>
+        </head>
+        <body>
+        </body>
+      </html>
+      |}];
+    return ())
 ;;

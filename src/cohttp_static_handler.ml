@@ -7,8 +7,8 @@ module Http_handler = struct
   type t = body:Body.t -> Socket.Address.Inet.t -> Request.t -> Server.response Deferred.t
 end
 
-(** There are multiple ways to refer to "index.html", but there should only be one.
-    This is an elementary URI router *)
+(** There are multiple ways to refer to "index.html", but there should only be one. This
+    is an elementary URI router *)
 module Canonicalize = struct
   type t =
     | Index
@@ -42,8 +42,8 @@ let log_file_not_found ?(log = Lazy.force Log.Global.log) filename =
   [%log.debug log "File not found" (filename : String.t)]
 ;;
 
-(** Same as [Cohttp_async.Server.respond_with_file], but if a gzipped version of the
-    file is available, the gzipped version will be served instead. *)
+(** Same as [Cohttp_async.Server.respond_with_file], but if a gzipped version of the file
+    is available, the gzipped version will be served instead. *)
 let respond_with_file_or_gzipped ?log ?flush ?headers ?content_type ?error_body filename =
   let gz_filename = filename ^ ".gz" in
   let headers =
@@ -171,6 +171,7 @@ module Asset = struct
     type t =
       | Javascript
       | Wasm
+      | Async_javascript
       | Linked of Link_attrs.t
       | Hosted of { type_ : string option }
     [@@deriving sexp_of]
@@ -180,6 +181,7 @@ module Asset = struct
     let favicon_svg = Linked (Link_attrs.create ~rel:"icon" ~type_:"image/svg+xml" ())
     let sourcemap = Hosted { type_ = Some "application/octet-stream" }
     let javascript = Javascript
+    let async_javascript = Async_javascript
     let wasm = Wasm
     let file ~rel ~type_ = Linked (Link_attrs.create ~rel ~type_ ())
 
@@ -190,7 +192,7 @@ module Asset = struct
     let in_server ~type_ = Hosted { type_ = Some type_ }
 
     let content_type = function
-      | Javascript -> Some "application/javascript"
+      | Javascript | Async_javascript -> Some "application/javascript"
       | Wasm -> Some "application/wasm"
       | Linked
           { rel = (_ : string)
@@ -295,7 +297,8 @@ module Asset = struct
 
            As such, we do not include the [type] attribute.
         *)
-        Some (sprintf {|<script defer src="%s"></script>|} filename))
+        Some (sprintf {|<script defer src="%s"></script>|} filename)
+      | Async_javascript -> Some (sprintf {|<script async src="%s"></script>|} filename))
   ;;
 
   let to_map_with_handlers t =
