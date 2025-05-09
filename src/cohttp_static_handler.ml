@@ -65,12 +65,12 @@ let respond_with_file_or_gzipped ?log ?flush ?headers ?content_type ?error_body 
   Cohttp_async.Server.respond_with_file ?flush ?headers ?error_body filename
 ;;
 
-let directory_handler ?log ?directory () ~body:_ inet req =
+let directory_handler ?log ?headers ?directory () ~body:_ inet req =
   let directory = Option.value directory ~default:Filename.current_dir_name in
   let path = request_path req in
   log_request ?log inet path;
   let filename = directory ^/ Canonicalize.path path in
-  respond_with_file_or_gzipped ?log filename
+  respond_with_file_or_gzipped ?log ?headers filename
 ;;
 
 let respond_string ?content_type ?flush ?headers ?status s =

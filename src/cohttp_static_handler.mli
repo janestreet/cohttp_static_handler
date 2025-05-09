@@ -141,4 +141,9 @@ end
     [directory/path/to/file.gz], the gzipped file will be served in its place.
 
     Requests are logged to [log], which defaults to [Log.Global.log]. *)
-val directory_handler : ?log:Log.t -> ?directory:string -> unit -> Http_handler.t
+val directory_handler
+  :  ?log:Log.t
+  -> ?headers:Cohttp.Header.t
+  -> ?directory:string
+  -> unit
+  -> Http_handler.t
