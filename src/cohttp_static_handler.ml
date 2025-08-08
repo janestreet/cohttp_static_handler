@@ -35,11 +35,11 @@ let request_path req =
 ;;
 
 let log_request ?(log = Lazy.force Log.Global.log) inet path =
-  [%log.debug log "Serving http request" (inet : Socket.Address.Inet.t) path]
+  [%log.t.debug log "Serving http request" (inet : Socket.Address.Inet.t) path]
 ;;
 
 let log_file_not_found ?(log = Lazy.force Log.Global.log) filename =
-  [%log.debug log "File not found" (filename : String.t)]
+  [%log.t.debug log "File not found" (filename : String.t)]
 ;;
 
 (** Same as [Cohttp_async.Server.respond_with_file], but if a gzipped version of the file
