@@ -159,7 +159,8 @@ module Asset = struct
       { rel : string
       ; type_ : string option
       ; title : string option
-          (* here be dragons https://developer.mozilla.org/en-US/docs/Archive/Web_Standards/Correctly_Using_Titles_With_External_Stylesheets *)
+          (* here be dragons
+             https://developer.mozilla.org/en-US/docs/Archive/Web_Standards/Correctly_Using_Titles_With_External_Stylesheets *)
       ; attrs : (string * string) list
       }
     [@@deriving sexp_of]
@@ -273,7 +274,7 @@ module Asset = struct
       | Linked link_attrs -> Some (make_link ~filename link_attrs)
       | Hosted { type_ = _ } | Wasm -> None
       | Javascript ->
-        (* From the HTML5 spec 4.12.1, regarding the [type] attribute:
+        (*=From the HTML5 spec 4.12.1, regarding the [type] attribute:
            https://www.w3.org/TR/html5/semantics-scripting.html#elementdef-script
            ------------------
            The type attribute allows customization of the type of script represented:
@@ -407,7 +408,7 @@ module Single_page_handler = struct
       | None -> ""
     in
     let asset_lines = Asset.to_html_lines assets |> concat_and_prepend_newline in
-    (* From the HTML5 spec 4.1.1, regarding the lang attribute:
+    (*=From the HTML5 spec 4.1.1, regarding the lang attribute:
        https://www.w3.org/TR/html52/semantics.html#elementdef-html
        ------------------
        Authors are encouraged to specify a lang attribute on the root html element, giving
