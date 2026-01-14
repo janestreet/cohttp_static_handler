@@ -83,8 +83,8 @@ module Asset : sig
 end
 
 module Single_page_handler : sig
-  (* Single page handlers are handlers that serve user specified JavaScript and css
-     files along with a generated index page that loads those files. *)
+  (* Single page handlers are handlers that serve user specified JavaScript and css files
+     along with a generated index page that loads those files. *)
 
   (** Represents a single page handler's generated index page. *)
   type t
