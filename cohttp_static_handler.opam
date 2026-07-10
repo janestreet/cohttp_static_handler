@@ -23,6 +23,9 @@ depends: [
   "uri-sexp"     {>= "3.0.0"}
 ]
 available: arch != "x86_32"
+conflicts: [
+  "oxcaml-compiler" {< "5.2.0minus39"}
+]
 synopsis: "A library for easily creating a cohttp handler for static files"
 description: "
 Single page handlers are handlers that serve user specified JavaScript and css
