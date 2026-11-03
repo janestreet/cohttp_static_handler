@@ -65,11 +65,32 @@ let respond_with_file_or_gzipped ?log ?flush ?headers ?content_type ?error_body 
   Cohttp_async.Server.respond_with_file ?flush ?headers ?error_body filename
 ;;
 
-let directory_handler ?log ?headers ?directory () ~body:_ inet req =
+let resolve_local_file ~docroot ~uri =
+  (* Vendored in from cohttp 6.3.0 release:
+     https://github.com/mirage/ocaml-cohttp/blob/7b77cc7f18778967cbe3f64742290f268782fb7d/cohttp/src/path.ml *)
+  let remove_dot_segments path =
+    let rec go acc = function
+      | [] -> List.rev acc
+      | ("" | ".") :: rest -> go acc rest
+      | ".." :: rest ->
+        (match acc with
+         | [] -> go [] rest
+         | _ :: tl -> go tl rest)
+      | seg :: rest -> go (seg :: acc) rest
+    in
+    path |> String.split ~on:'/' |> go [] |> String.concat ~sep:"/"
+  in
+  let normalise uri = uri |> Uri.path |> Uri.pct_decode |> remove_dot_segments in
+  Filename.concat docroot (normalise uri)
+;;
+
+let directory_handler ?log ?headers ?directory () ~body:_ inet (req : Request.t) =
   let directory = Option.value directory ~default:Filename.current_dir_name in
-  let path = request_path req in
+  let uri = Request.uri req in
+  let path = Uri.path uri in
   log_request ?log inet path;
-  let filename = directory ^/ Canonicalize.path path in
+  let uri = Uri.with_path uri (Canonicalize.path path) in
+  let filename = resolve_local_file ~docroot:directory ~uri in
   respond_with_file_or_gzipped ?log ?headers filename
 ;;
 

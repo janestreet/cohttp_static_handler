@@ -13,6 +13,12 @@ module Debug_server : sig
     -> 'a Deferred.t
 
   val perform_request_and_print_body : t -> path:string -> unit Deferred.t
+
+  val perform_request_target_and_print_status_and_body
+    :  t
+    -> request_target:string
+    -> unit Deferred.t
+
   val perform_request_and_print_headers_and_body : t -> path:string -> unit Deferred.t
 end = struct
   type t = (Socket.Address.Inet.t, int) Cohttp_async.Server.t
@@ -24,19 +30,36 @@ end = struct
       handler
   ;;
 
-  let perform_request_and_return_headers_and_body t ~path =
+  let perform_request_and_return_response_and_body ?request_target t ~path =
     let port = Cohttp_async.Server.listening_on t in
+    let uri = Uri.of_string [%string "http://127.0.0.1:%{port#Int}%{path#String}"] in
     let%bind (response : Cohttp.Response.t), body =
-      Cohttp_async.Client.get (Uri.of_string (sprintf "http://127.0.0.1:%d%s" port path))
+      match request_target with
+      | None -> Cohttp_async.Client.get uri
+      | Some resource ->
+        let request = { (Cohttp.Request.make uri) with resource } in
+        Cohttp_async.Client.request ~uri request
     in
     let%map body = Cohttp_async.Body.to_string body in
-    let headers = Cohttp.Response.headers response in
-    headers, body
+    response, body
+  ;;
+
+  let perform_request_and_return_headers_and_body t ~path =
+    let%map response, body = perform_request_and_return_response_and_body t ~path in
+    Cohttp.Response.headers response, body
   ;;
 
   let perform_request_and_print_body t ~path =
     let%map _, body = perform_request_and_return_headers_and_body t ~path in
     print_endline body
+  ;;
+
+  let perform_request_target_and_print_status_and_body t ~request_target =
+    let%map response, body =
+      perform_request_and_return_response_and_body t ~path:"/" ~request_target
+    in
+    let status = Cohttp.Code.string_of_status (Cohttp.Response.status response) in
+    print_s [%message (status : string) (body : string)]
   ;;
 
   let perform_request_and_print_headers_and_body t ~path =
@@ -634,6 +657,110 @@ let%expect_test "Directory single handler" =
       let%bind () = Writer.save (dir ^/ "index.html") ~contents:{|<html>|} in
       let%map () = Debug_server.perform_request_and_print_body debug_server ~path:"/" in
       [%expect {| <html> |}]))
+;;
+
+let%expect_test "Directory handler rejects traversal outside of docroot" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let directory = dir ^/ "public" in
+    Core_unix.mkdir directory;
+    Core_unix.mkdir (directory ^/ "subdirectory");
+    let%bind () = Writer.save (directory ^/ "file") ~contents:"public" in
+    let%bind () = Writer.save (dir ^/ "secret") ~contents:"secret" in
+    let handler = Cohttp_static_handler.directory_handler ~directory () in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%bind () =
+        Debug_server.perform_request_target_and_print_status_and_body
+          debug_server
+          ~request_target:"/../secret"
+      in
+      [%expect
+        {|
+        ((status "404 Not Found")
+         (body "<html><body><h1>404 Not Found</h1></body></html>"))
+        |}];
+      let%map () =
+        Debug_server.perform_request_target_and_print_status_and_body
+          debug_server
+          ~request_target:"http://example.test/../secret"
+      in
+      [%expect
+        {|
+        ((status "404 Not Found")
+         (body "<html><body><h1>404 Not Found</h1></body></html>"))
+        |}]))
+;;
+
+let%expect_test "Directory handler allows traversal within docroot" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let directory = dir ^/ "public" in
+    Core_unix.mkdir directory;
+    Core_unix.mkdir (directory ^/ "subdirectory");
+    let%bind () = Writer.save (directory ^/ "file") ~contents:"public" in
+    let%bind () = Writer.save (dir ^/ "secret") ~contents:"secret" in
+    let handler = Cohttp_static_handler.directory_handler ~directory () in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%bind () =
+        Debug_server.perform_request_target_and_print_status_and_body
+          debug_server
+          ~request_target:"/subdirectory/../file"
+      in
+      [%expect {| ((status "200 OK") (body public)) |}];
+      let%map () =
+        Debug_server.perform_request_target_and_print_status_and_body
+          debug_server
+          ~request_target:"http://example.test/subdirectory/../file"
+      in
+      [%expect {| ((status "200 OK") (body public)) |}]))
+;;
+
+let%expect_test "Directory handler allows nested absolute-form rewrite within docroot" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let directory = dir ^/ "public" in
+    Core_unix.mkdir directory;
+    Core_unix.mkdir (directory ^/ "subdirectory");
+    let%bind () = Writer.save (directory ^/ "file") ~contents:"public" in
+    let%bind () = Writer.save (dir ^/ "secret") ~contents:"secret" in
+    let directory_handler = Cohttp_static_handler.directory_handler ~directory () in
+    let handler ~body inet request =
+      let path = Cohttp.Request.uri request |> Uri.path in
+      match String.chop_prefix path ~prefix:"/static/" with
+      | Some resource -> directory_handler ~body inet { request with resource }
+      | None -> Cohttp_async.Server.respond_string ~status:`Not_found "Not Found"
+    in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%map () =
+        Debug_server.perform_request_target_and_print_status_and_body
+          debug_server
+          ~request_target:"http://example.test/static/http://inner/subdirectory/../file"
+      in
+      [%expect {| ((status "200 OK") (body public)) |}]))
+;;
+
+let%expect_test "Directory handler rejects nested absolute-form rewrite outside docroot" =
+  Expect_test_helpers_async.with_temp_dir (fun dir ->
+    let directory = dir ^/ "public" in
+    Core_unix.mkdir directory;
+    Core_unix.mkdir (directory ^/ "subdirectory");
+    let%bind () = Writer.save (directory ^/ "file") ~contents:"public" in
+    let%bind () = Writer.save (dir ^/ "secret") ~contents:"secret" in
+    let directory_handler = Cohttp_static_handler.directory_handler ~directory () in
+    let handler ~body inet request =
+      let path = Cohttp.Request.uri request |> Uri.path in
+      match String.chop_prefix path ~prefix:"/static/" with
+      | Some resource -> directory_handler ~body inet { request with resource }
+      | None -> Cohttp_async.Server.respond_string ~status:`Not_found "Not Found"
+    in
+    Debug_server.with_ handler ~f:(fun debug_server ->
+      let%map () =
+        Debug_server.perform_request_target_and_print_status_and_body
+          debug_server
+          ~request_target:"http://example.test/static/http://inner/../secret"
+      in
+      [%expect
+        {|
+        ((status "404 Not Found")
+         (body "<html><body><h1>404 Not Found</h1></body></html>"))
+        |}]))
 ;;
 
 let%expect_test "Static handler with asset" =

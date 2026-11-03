@@ -3,4 +3,4 @@
  (libraries async cohttp cohttp-async cohttp_static_handler core core_unix
    expect_test_helpers_async file_path filesystem.async uri)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane ppx_string)))
