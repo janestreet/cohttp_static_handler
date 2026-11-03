@@ -1,3 +1,7 @@
+## Release v0.18.1
+- `directory_handler` no longer escapes the docroot when given path traversal sequences
+  such as `../../`.
+
 ## Release v0.17.0
 
 - `Asset.file` and `Asset.file_serve_as` now have a `relative_to` parameter for resolving relative paths with options: `Cwd` (current working directory) or `Exe` (executable's directory).

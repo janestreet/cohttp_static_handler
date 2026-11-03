@@ -140,7 +140,11 @@ end
     If there is a gzipped version of a requested file located at
     [directory/path/to/file.gz], the gzipped file will be served in its place.
 
-    Requests are logged to [log], which defaults to [Log.Global.log]. *)
+    Requests are logged to [log], which defaults to [Log.Global.log].
+
+    Callers that rewrite {!Request.resource} should keep it in origin form (starting with
+    /). A URI-shaped rewritten resource may otherwise be re-parsed as an absolute URI. Any
+    security-sensitive path checks must use the same normalized path used for file lookup. *)
 val directory_handler
   :  ?log:Log.t
   -> ?headers:Cohttp.Header.t
